@@ -2,7 +2,9 @@
 open System
 open System.Text
 open System.Text.RegularExpressions
-#if !FABLE_COMPILER
+#if FABLE_COMPILER
+open Fable.Microsoft.Extensions.Logging
+#else
 open Microsoft.Extensions.Logging
 open BlackFox.MasterOfFoo
 #endif

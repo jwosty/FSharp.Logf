@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

@@ -60,10 +60,6 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
-[Bb]uild/
-_[Bb]uild/
-[Dd]eploy/
-_[Dd]eploy/
 
 # Visual Studio 2015 cache/options directory
 .vs/
@@ -450,8 +446,9 @@ bower_components
 .bower-registry
 .bower-tmp
 
+### Paket ###
+packages/
 
-### WebSharper ###
-Scripts/
-
+### Fable ###
 *.fs.js
+*.fs.js.map

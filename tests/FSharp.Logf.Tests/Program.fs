@@ -1,12 +1,13 @@
 ﻿module FSharp.Logf.Tests
 open System
 open System.Collections.Generic
-open Expecto
-open Expecto.Flip
 open FSharp.Logf
+open Fable.Mocha
 #if FABLE_COMPILER
 open Fable.Microsoft.Extensions.Logging
 #else
+open Expecto
+open Expecto.Flip
 open Microsoft.Extensions.Logging
 #endif
 

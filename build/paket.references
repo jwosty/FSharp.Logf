@@ -1,0 +1,7 @@
+group Build
+Fake.DotNet.Paket
+FSharp.Core
+Fake.Core.Target
+Fake.DotNet.Cli
+Microsoft.Build
+Microsoft.Build.Framework

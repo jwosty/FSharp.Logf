@@ -18,11 +18,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution files", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		Readme.md = Readme.md
 		global.json = global.json
+		.gitignore = .gitignore
+		build.cmd = build.cmd
+		build.sh = build.sh
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B76BF83C-9A8F-4938-9301-F00D3020A1B7}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf.Tests", "tests\FSharp.Logf.Tests\FSharp.Logf.Tests.fsproj", "{833C0B68-DF6B-43EF-83D1-83AF81B76931}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "build", "build\build.fsproj", "{F06A5972-A392-487F-BA54-54C11AEF4309}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +60,12 @@ Global
 		{833C0B68-DF6B-43EF-83D1-83AF81B76931}.Release|Any CPU.Build.0 = Release|Any CPU
 		{833C0B68-DF6B-43EF-83D1-83AF81B76931}.FABLE_COMPILER|Any CPU.ActiveCfg = FABLE_COMPILER|Any CPU
 		{833C0B68-DF6B-43EF-83D1-83AF81B76931}.FABLE_COMPILER|Any CPU.Build.0 = FABLE_COMPILER|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.FABLE_COMPILER|Any CPU.ActiveCfg = Debug|Any CPU
+		{F06A5972-A392-487F-BA54-54C11AEF4309}.FABLE_COMPILER|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F482FADE-A438-4A10-955B-D2DA018A827A} = {84FB3DB5-A541-4954-BC46-0FB432000725}

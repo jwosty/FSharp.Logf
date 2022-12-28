@@ -1,8 +1,23 @@
 source https://api.nuget.org/v3/index.json
+framework: auto-detect
 
 nuget BlackFox.MasterOfFoo >= 1.0
 nuget Expecto >= 8.1.0
 nuget Fable.Mocha
 nuget FSharp.Core >= 4.2.3
 nuget Microsoft.Extensions.Logging >= 6.0.0
+nuget Microsoft.NET.Test.Sdk
 nuget Suave >= 2.5.0
+
+group Build
+    source https://api.nuget.org/v3/index.json
+    framework: net6.0
+    
+    nuget Fake.DotNet.Paket ~> 5.23.1
+    nuget FSharp.Core >= 6
+    nuget Fake.Core.Target ~> 5.23.1
+    nuget Fake.DotNet.Cli ~> 5.23.1
+nuget Microsoft.Build ~> 17.2.0
+nuget Microsoft.Build.Framework ~> 17.2.0
+    
+    
