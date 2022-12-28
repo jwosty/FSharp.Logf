@@ -1,4 +1,4 @@
-﻿namespace Q2Q.Tests
+﻿namespace FSharp.Logf
 open System
 open System.Collections.Generic
 open Microsoft.Extensions.Logging
@@ -44,7 +44,7 @@ type ExpectoMsLoggerAdapter(el: ELogger) =
                         // 1. bar => arg2
                         // 2. {OriginalFormat} => "Some {foo} message with more stuff: {bar}"
                         
-                        // Trim { and } and convert to a property Map, because that's what Expecto takes
+                        // Convert to a property Map, because that's what Expecto takes
                         let props = structure |> Seq.map (fun kv -> kv.Key, kv.Value) |> Map.ofSeq
                         let props' =
                             props

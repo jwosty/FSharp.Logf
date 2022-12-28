@@ -3,9 +3,12 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="ILogger.fs" />
     <Compile Include="logf.fsi" />
     <Compile Include="logf.fs" />
   </ItemGroup>

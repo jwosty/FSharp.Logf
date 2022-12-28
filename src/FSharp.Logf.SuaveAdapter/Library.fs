@@ -1,4 +1,4 @@
-﻿module Q2Q.Core.UIServer.Logging
+﻿module FSharp.Logf
 open System
 open System.Collections.Generic
 open System.IO

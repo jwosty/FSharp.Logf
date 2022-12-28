@@ -2,19 +2,11 @@ module FSharp.Logf
 open System
 open System.Text
 open System.Text.RegularExpressions
-#if !FABLE_COMPILER
+#if FABLE_COMPILER
+open Fable.Microsoft.Extensions.Logging
+#else
 open Microsoft.Extensions.Logging
 #endif
-
-#if FABLE_COMPILER
-/// Fable proxy/stub for Microsoft.Extensions.Logging.Logger
-type ILogger = ILogger
-type LogLevel = | Trace = 0 | Debug = 1 | Information = 2 | Warning = 3 | Error = 4 | Critical = 5 | None = 6
-#endif
-
-[<Sealed; AbstractClass>]
-type Log =
-    static member Default : ILogger with get, set
 
 val logf : logger: ILogger -> logLevel: LogLevel -> format: Format<'T, unit, string, unit> -> 'T
 val elogf : logger: ILogger -> logLevel: LogLevel -> exn: Exception -> format: Format<'T, unit, string, unit> -> 'T

@@ -9,28 +9,6 @@ open BlackFox.MasterOfFoo
 
 // TODO: write tests
 
-#if FABLE_COMPILER
-/// Fable proxy/stub for Microsoft.Extensions.Logging.Logger
-type ILogger = ILogger
-type LogLevel = | Trace = 0 | Debug = 1 | Information = 2 | Warning = 3 | Error = 4 | Critical = 5 | None = 6
-#endif
-[<Sealed; AbstractClass>]
-type Log private() =
-    static let mutable log: ILogger option = None
-    static member Default
-        with get () =
-            match log with
-            | Some l -> l
-            | None -> raise (InvalidOperationException("Logger not initialized"))
-        and set l =
-            match log with
-            | Some _ -> raise (InvalidOperationException("Logger already initialized"))
-            | None -> log <- Some l
-
-#if FABLE_COMPILER
-Log.Default <- ILogger
-#endif
-
 #if !FABLE_COMPILER
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
     inherit PrintfEnv<unit, string, 'Unit>()

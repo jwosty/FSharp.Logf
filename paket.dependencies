@@ -2,6 +2,7 @@ source https://api.nuget.org/v3/index.json
 
 nuget BlackFox.MasterOfFoo >= 1.0
 nuget Expecto >= 8.1.0
+nuget Fable.Mocha
 nuget FSharp.Core >= 4.2.3
 nuget Microsoft.Extensions.Logging >= 6.0.0
 nuget Suave >= 2.5.0

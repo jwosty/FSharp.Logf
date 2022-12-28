@@ -41,10 +41,21 @@ let main argv =
 
 ## Fable compatability
 
-This library is Fable-compatible. You can get a stubbed `ILogger` like so:
+This library is Fable-compatible. You can take advantage of this like so:
 
 ```fsharp
-// Instead of the usual logger factory bits
-let ml = ILogger
+#if FABLE_COMPILER
+open Fable.Microsoft.Extensions.Logging
+#else
+open Microsoft.Extensions.Logging
+#endif
+
+let ml =
+#if FABLE_COMPILER
+    ConsoleLogger
+#else
+    xyz
+#endif
+
 logfi ml "Hello, world"
 ```
