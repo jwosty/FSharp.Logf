@@ -14,6 +14,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf.ExpectoAdapter"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf.SuaveAdapter", "src\FSharp.Logf.SuaveAdapter\FSharp.Logf.SuaveAdapter.fsproj", "{768B87B0-08FC-4273-8166-D63B7E12CEF5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution files", "Solution files", "{57B387C7-AAC7-41E3-A76A-F961C2F5DD34}"
+	ProjectSection(SolutionItems) = preProject
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
