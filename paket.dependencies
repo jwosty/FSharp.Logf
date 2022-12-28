@@ -8,6 +8,7 @@ nuget FSharp.Core >= 4.2.3
 nuget Microsoft.Extensions.Logging >= 6.0.0
 nuget Microsoft.NET.Test.Sdk
 nuget Suave >= 2.5.0
+nuget YoloDev.Expecto.TestSdk
 
 group Build
     source https://api.nuget.org/v3/index.json

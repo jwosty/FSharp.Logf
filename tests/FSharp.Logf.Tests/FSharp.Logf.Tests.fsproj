@@ -9,6 +9,8 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Mocha.fs" />
+    <Compile Include="Mocha.Flip.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

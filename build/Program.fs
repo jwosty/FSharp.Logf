@@ -2,6 +2,7 @@
 open Fake.Core
 open Fake.IO
 open Fake.IO.FileSystemOperators
+open Fake.IO.Globbing.Operators
 open Fake.DotNet
 
 module Folder =
@@ -18,28 +19,50 @@ module Projects =
 
 let buildCfg = DotNet.BuildConfiguration.fromEnvironVarOrDefault "CONFIGURATION" DotNet.BuildConfiguration.Release
 
-let Clean _ =
-    DotNet.exec id "clean" Projects.sln |> ignore
-    // TODO: `dotnet fable clean`
+let Clean (args: TargetParameter) =
+    let isDryRun = args.Context.Arguments |> List.contains "--dry-run"
+    Trace.logfn " -- Cleaning%s --" (if isDryRun then " (DRY RUN)" else "")
+    let deleteDir =
+        if isDryRun then (fun p -> Trace.logfn "Would remove: %s" p)
+        else (fun p -> Trace.logfn "Removing: %s" p; Directory.delete p)
+    // if not isDryRun then DotNet.exec (fun o -> ) "clean" Projects.sln |> ignore
+    let outputDirs =
+        !!("**" </> "bin")
+        ++("**" </> "obj")
+        ++"packages"
+        --("build" </> "**")
+    outputDirs
+    // |> Seq.map (fun x -> Trace.logfn "Removing: '%s'" x; x)
+    |> Seq.iter deleteDir
+    if isDryRun then
+        Trace.logfn "Would execute: dotnet fable clean --yes"
+    else
+        DotNet.exec id "fable" "clean --yes" |> ignore
 
 let Restore _ =
+    Trace.log " -- Restoring --"
     // Can't get Paket.restore to work because it fails with:
     //      An error occurred trying to start process 'paket' with working directory '.'. No such file or directory
     DotNet.exec id "paket" "restore" |> ignore
     DotNet.restore id Projects.sln
 
 let BuildDotNet _ =
+    Trace.log " -- Building dotnet projects --"
     DotNet.build (fun bo -> { bo with Configuration = buildCfg; NoRestore = true }) Projects.sln
 
 let BuildFable _ =
+    Trace.log " -- Building fable projects --"
     ()
 
 let Build _ = ()
 
 let TestDotNet _ =
-    DotNet.test (fun ``to`` -> { ``to`` with NoRestore = true; NoBuild = true }) Projects.test
+    Trace.log " -- Running dotnet tests --"
+    DotNet.test (fun ``to`` -> { ``to`` with NoRestore = true; NoBuild = true; Configuration = buildCfg }) Projects.sln
 
-let TestFable _ = ()
+let TestFable _ =
+    Trace.log " -- Running fable tests --"
+    ()
 
 let Test _ = ()
 
