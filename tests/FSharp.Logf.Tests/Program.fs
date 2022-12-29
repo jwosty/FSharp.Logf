@@ -54,16 +54,6 @@ let mkLogger () = AssertableLogger()
 type Point = { x: float; y: float }
 type Shape = | Rectangle of w:float * h:float | Circle of r:float | Triangle of b:float * w:float
 
-// `string logLevel` works under .NET, but just gives the integer value under Fable
-// let logLevelName = function
-//     | LogLevel.None -> nameof LogLevel.None
-//     | LogLevel.Trace -> nameof LogLevel.Trace
-//     | LogLevel.Debug -> nameof LogLevel.Debug
-//     | LogLevel.Information -> nameof LogLevel.Information
-//     | LogLevel.Warning -> nameof LogLevel.Warning
-//     | LogLevel.Error -> nameof LogLevel.Error
-//     | LogLevel.Critical -> nameof LogLevel.Critical
-
 [<Tests>]
 let allTests =
     testList "FSharp_Logf_sln" [
@@ -81,12 +71,12 @@ let allTests =
                 l.Lines |> Seq.map LogLine.message
                 |> Expect.sequenceEqual "messages" ["FooBar."; "BANANA!123"]
             )
-            testCase "Can print with an unnamed string parameter" (fun () ->
+            testCase "Can print an unnamed string parameter" (fun () ->
                 let l = mkLogger ()
                 logf l LogLevel.Information "Hello, %s." "Jim"
                 l.LastLine.message |> Expect.equal "message" "Hello, Jim."
             )
-            testCase "Can print with various unnamed parameters" (fun () ->
+            testCase "Can print various unnamed parameters" (fun () ->
                 let l = mkLogger ()
                 logf l LogLevel.Information "Some params: %s,%d,%.3f,%i" "foo" 42 43.5 -1
                 l.LastLine.message |> Expect.equal "message" "Some params: foo,42,43.500,-1"
@@ -125,35 +115,69 @@ let allTests =
 #endif
                 ]
             )
-            testList "Logs at the correct level" [
-                for (logLevel, logfVariant, elogfVariantOpt) in [
-                    LogLevel.Trace, logft, None
-                    LogLevel.Debug, logfd, None
-                    LogLevel.Information, logfi, None
-                    LogLevel.Warning, logfw, Some elogfw
-                    LogLevel.Error, logfe, Some elogfe
-                    LogLevel.Critical, logfc, Some elogfc
-                ] do
-                    // see https://github.com/fable-compiler/Fable/issues/3315
-                    yield testCase (Enum.GetName(typeof<LogLevel>, logLevel)) (fun () ->
-                        let l = mkLogger ()
-                        logf l logLevel "Hello, %s!" "world"
-                        logfVariant l "Hello, %s!" "world"
-                        l.Lines[0].logLevel |> Expect.equal "logLevel" logLevel
-                        l.Lines[0].message |> Expect.equal "message" "Hello, world!"
-                        l.Lines[1] |> Expect.equal "logf variant should be the same as calling logf with the corresponding level" l.Lines[0]
-                        
-                        let err =
-                            try raise (KeyNotFoundException())
-                            with err -> err
-                        
-                        match elogfVariantOpt with
-                        | Some elogfVariant ->
-                            elogfVariant l err "Hello, %s!" "world"
-                            l.Lines[2] |> Expect.equal "elogf variant should be the same as calling logf with the corresponding level and exception" { l.Lines[0] with error = Some err }
-                        | None -> ()
-                    )
-            ]
+            testCase "Can print various named parameters" (fun () ->
+                let l = mkLogger ()
+                logf l LogLevel.Information "Drawing rectangle with dimensions: %.5f{width},%.5f{height}" 100. 234.
+                logf l LogLevel.Information "Drawing rectangle with dimensions (reversed): %.5f{height},%.5f{width}" 234. 100.
+                l.Lines |> Expect.sequenceEqual "Log lines" [
+#if !FABLE_COMPILER
+                    { LogLine.empty with message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0]}
+                    { LogLine.empty with message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
+#else
+                    { LogLine.empty with message = "Drawing rectangle with dimensions: 100.00000,234.00000" }
+                    { LogLine.empty with message = "Drawing rectangle with dimensions (reversed): 234.00000,100.00000" }
+#endif
+                ]
+            )
+        ]
+        testList "elogf" [
+            testCase "Can print various named parameters" (fun () ->
+                let l = mkLogger ()
+                let err =
+                    try raise (InvalidOperationException())
+                    with err -> err
+                
+                elogf l LogLevel.Information err "Drawing rectangle with dimensions: %.5f{width},%.5f{height}" 100. 234.
+                elogf l LogLevel.Information err "Drawing rectangle with dimensions (reversed): %.5f{height},%.5f{width}" 234. 100.
+                l.Lines |> Expect.sequenceEqual "Log lines" [
+#if !FABLE_COMPILER
+                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0] }
+                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
+#else
+                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions: 100.00000,234.00000" }
+                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions (reversed): 234.00000,100.00000" }
+#endif
+                ]
+            )
+        ]
+        testList "Functions log at the correct level" [
+            for (logLevel, logfVariant, elogfVariantOpt) in [
+                LogLevel.Trace, logft, None
+                LogLevel.Debug, logfd, None
+                LogLevel.Information, logfi, None
+                LogLevel.Warning, logfw, Some elogfw
+                LogLevel.Error, logfe, Some elogfe
+                LogLevel.Critical, logfc, Some elogfc
+            ] do
+                // see https://github.com/fable-compiler/Fable/issues/3315
+                yield testCase (Enum.GetName(typeof<LogLevel>, logLevel)) (fun () ->
+                    let l = mkLogger ()
+                    logf l logLevel "Hello, %s!" "world"
+                    logfVariant l "Hello, %s!" "world"
+                    l.Lines[0].logLevel |> Expect.equal "logLevel" logLevel
+                    l.Lines[0].message |> Expect.equal "message" "Hello, world!"
+                    l.Lines[1] |> Expect.equal "logf variant should be the same as calling logf with the corresponding level" l.Lines[0]
+                    
+                    let err =
+                        try raise (KeyNotFoundException())
+                        with err -> err
+                    
+                    match elogfVariantOpt with
+                    | Some elogfVariant ->
+                        elogfVariant l err "Hello, %s!" "world"
+                        l.Lines[2] |> Expect.equal "elogf variant should be the same as calling logf with the corresponding level and exception" { l.Lines[0] with error = Some err }
+                    | None -> ()
+                )
         ]
     ]
 

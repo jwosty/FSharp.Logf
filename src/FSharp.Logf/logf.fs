@@ -74,17 +74,17 @@ let elogf logger logLevel exn format =
 // matches a printf-style format specifier (like %s or %+6.4d) followed immediately by a log message param specifier
 // (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
 // format specifier (like %s or %+6.4d)
-let private logMsgParamNameRegex =
+let logMsgParamNameRegex =
     new Regex("""(%[0\-+ ]?\d*(\.\d+)?[a-zA-Z])(\{[^}]+\})""", RegexOptions.ECMAScript)
 
 // For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
 // or they would show up in the console output unintentionally.
 
-let inline private stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
+let inline stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
     (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
-
-let private printToConsole logLevel (m: obj) =
+    
+let printToConsole logLevel (m: obj) =
     match logLevel with
     | LogLevel.Critical | LogLevel.Error -> Fable.Core.JS.console.error m
     | LogLevel.Warning -> Fable.Core.JS.console.warn m
@@ -95,13 +95,11 @@ let private printToConsole logLevel (m: obj) =
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
 let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x))) (stripLogMsgParamNames format)
+    Printf.ksprintf (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun s e -> x))) (stripLogMsgParamNames format)
 let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
     Printf.ksprintf (fun (x:string) ->
         logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
-        // printToConsole logLevel s
-        // printToConsole logLevel exn
-    ) format
+    ) (stripLogMsgParamNames format)
 
 #endif
 
