@@ -39,12 +39,14 @@ type AssertableLogger(?level) =
         override this.Log<'TState> (logLevel, eventId, state: 'TState, error, formatter) =
             let msg, args =
                 match state :> obj with
+#if !FABLE_COMPILER
                 // See FSharp.Logf.ExpectoMsLoggerAdapter
                 | :? IEnumerable<KeyValuePair<string, obj>> as structure ->
                     let msgKv = structure |> Seq.find (fun x -> x.Key = "{OriginalFormat}")
                     let msg = msgKv.Value :?> string
                     let args = structure |> Seq.filter (fun x -> x.Key <> "{OriginalFormat}") |> Seq.map (fun x -> x.Key, x.Value) |> Seq.toList
                     msg, args
+#endif
                 | _ ->
                     formatter.Invoke(state, error), []
             this.Lines.Add { logLevel = logLevel; eventId = eventId; message = msg; args = args; error = Option.ofObj error }
@@ -53,6 +55,13 @@ let mkLogger () = AssertableLogger()
 
 type Point = { x: float; y: float }
 type Shape = | Rectangle of w:float * h:float | Circle of r:float | Triangle of b:float * w:float
+
+type DummyException() =
+    inherit Exception("This is a fake exception for testing that did not come from real code.")
+
+let makeDummyException () =
+    try raise (DummyException())
+    with e -> e
 
 [<Tests>]
 let allTests =
@@ -115,40 +124,114 @@ let allTests =
 #endif
                 ]
             )
-            testCase "Can print various named parameters" (fun () ->
+            testCase "Can print a mix of named and unnamed parameters" (fun () ->
                 let l = mkLogger ()
-                logf l LogLevel.Information "Drawing rectangle with dimensions: %.5f{width},%.5f{height}" 100. 234.
-                logf l LogLevel.Information "Drawing rectangle with dimensions (reversed): %.5f{height},%.5f{width}" 234. 100.
+                logf l LogLevel.Information "%s%s{namedParam}%s" "a" "b" "c"
+                logf l LogLevel.Information "%s{namedParam}%c" "a" 'z'
+                
                 l.Lines |> Expect.sequenceEqual "Log lines" [
 #if !FABLE_COMPILER
-                    { LogLine.empty with message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0]}
-                    { LogLine.empty with message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
+                    { LogLine.empty with message = "a{namedParam}c"; args = ["namedParam", "b"] }
+                    { LogLine.empty with message = "{namedParam}z"; args = ["namedParam", "a"] }
 #else
-                    { LogLine.empty with message = "Drawing rectangle with dimensions: 100.00000,234.00000" }
-                    { LogLine.empty with message = "Drawing rectangle with dimensions (reversed): 234.00000,100.00000" }
+                    { LogLine.empty with message = "abc" }
+                    { LogLine.empty with message = "az" }
 #endif
                 ]
             )
         ]
-        testList "elogf" [
-            testCase "Can print various named parameters" (fun () ->
-                let l = mkLogger ()
-                let err =
-                    try raise (InvalidOperationException())
-                    with err -> err
-                
-                elogf l LogLevel.Information err "Drawing rectangle with dimensions: %.5f{width},%.5f{height}" 100. 234.
-                elogf l LogLevel.Information err "Drawing rectangle with dimensions (reversed): %.5f{height},%.5f{width}" 234. 100.
-                l.Lines |> Expect.sequenceEqual "Log lines" [
-#if !FABLE_COMPILER
-                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0] }
-                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
-#else
-                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions: 100.00000,234.00000" }
-                    { LogLine.empty with error = Some err; message = "Drawing rectangle with dimensions (reversed): 234.00000,100.00000" }
-#endif
+        testList "SharedTests" [
+            let inline sharedTestCase name code =
+                let err = makeDummyException ()
+                testList name [
+                    for (funcName, logfOrElogf, emptyLogLine) in [nameof(logf), logf, LogLine.empty; nameof(elogf), (fun logger logLevel args -> elogf logger logLevel err args), { LogLine.empty with error = Some err }] ->
+                        testCase funcName (fun () -> code logfOrElogf emptyLogLine)
                 ]
-            )
+                
+            testList "Escapes curly braces not part of a named parameter" [
+                // .NET impl should escape the curly braces lest they be interpreted as a message template by the ILogger object.
+                // Fable impl doesn't need to do this since the thing printing won't actually output named parameters anyway.
+                sharedTestCase "case 1" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    logfOrElogf l LogLevel.Information "%s{" "Yo"
+                    
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "Yo{{" }
+#else
+                        { emptyLogLine with message = "Yo{" }
+#endif
+                )
+                sharedTestCase "case 2" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    logfOrElogf l LogLevel.Information "%s{%d}" "SomeString" 42
+                    
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "SomeString{{42}}" }
+#else
+                        { emptyLogLine with message = "SomeString{42}" }
+#endif
+                )
+                sharedTestCase "case 3" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    logfOrElogf l LogLevel.Information "%s{}%d {iaminvalid}" "XYZ" -797
+                    
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "XYZ{{}}-797 {{iaminvalid}}" }
+#else
+                        { emptyLogLine with message = "XYZ{}-797 {iaminvalid}" }
+#endif
+                )
+                sharedTestCase "case 4" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    logfOrElogf l LogLevel.Information "{%s{}%d}" "XYZ" -797
+                    
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "{{XYZ{{}}-797}}" }
+#else
+                        { emptyLogLine with message = "{XYZ{}-797}" }
+#endif
+                )
+            ]
+            
+            testList "Can print various named parameters" [
+                sharedTestCase "basic case" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    
+                    logfOrElogf l LogLevel.Information "Drawing rectangle with dimensions: %f{width},%f{height}" 100. 234.
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0] }
+#else
+                        { emptyLogLine with message = "Drawing rectangle with dimensions: 100.000000,234.000000" }
+#endif
+                )
+                sharedTestCase "params reversed" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    
+                    logfOrElogf l LogLevel.Information "Drawing rectangle with dimensions (reversed): %f{height},%f{width}" 234. 100.
+                    l.LastLine |> Expect.equal "Log lines" 
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
+#else
+                        { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): 234.000000,100.000000" }
+#endif
+                )
+                sharedTestCase "advanced fmt specifiers" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    
+                    logfOrElogf l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
+                    l.LastLine |> Expect.equal "Log lines" 
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "Params: {a},{b},{c}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
+#else
+                        { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
+#endif
+                )
+            ]
         ]
         testList "Functions log at the correct level" [
             for (logLevel, logfVariant, elogfVariantOpt) in [
@@ -168,9 +251,7 @@ let allTests =
                     l.Lines[0].message |> Expect.equal "message" "Hello, world!"
                     l.Lines[1] |> Expect.equal "logf variant should be the same as calling logf with the corresponding level" l.Lines[0]
                     
-                    let err =
-                        try raise (KeyNotFoundException())
-                        with err -> err
+                    let err = makeDummyException ()
                     
                     match elogfVariantOpt with
                     | Some elogfVariant ->

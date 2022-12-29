@@ -16,7 +16,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    let logFormatSpecifierRegex = Regex("""\A{[^}]+}""")
+    let logFormatSpecifierRegex = Regex("""\A{[a-zA-Z0-9]+}""")
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
     // but the F# compiler doesn't give us a way to disambiguate this. So, to work around, we make it generic and
@@ -63,11 +63,29 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
 type private LogfEnv(logger, logLevel, ?exn) =
     inherit LogfEnvParent<unit>(logger, logLevel, ?exn = exn)
 
+// This regex matches either a valid format specifier (i.e. things like "%s{foo}"), and also matches lone curly braces.
+// Valid format specifiers will be captured by the named capture group "a", and lone curly braces will be captured
+// by the named capture group "b". Later, using the replacement pattern "${a}${b}${b}" causes any occurrences of "a"
+// (valid format specifiers) to be placed back into the string as-is, while occurrences of "b" will be doubled (having
+// the effect of escaping those lone curly braces.
+// Examples:
+//  * Input: "%s{foo}"
+//      * 1st match: "a" = "%s{foo}", "b" = "", "${a}${b}${b}" = "$s{foo}"
+//      * Output: "$s{foo}"
+//  * Input: "foo{bar}"
+//      * 1st match: "a" = "", "b" = "{", "${a}${b}${b}" = "{{"
+//      * 2nd match: "a" = "", "b" = "}", "${a}${b}${b}" = "}}"
+//      * Output: foo{{bar}}
+let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>%(\.\d+)?[a-zA-Z]\{[a-zA-Z0-9]+\})|(?<b>[\{\}])""")
+
+let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
+    let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
+    Format<'T, unit, string, unit>(fmtValue', format.Captures, format.CaptureTypes)
 
 let logf logger logLevel format =
-    doPrintfFromEnv format (LogfEnv(logger, logLevel))
+    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel))
 let elogf logger logLevel exn format =
-    doPrintfFromEnv format (LogfEnv(logger, logLevel, exn))
+    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel, exn))
 
 #else
 
@@ -75,7 +93,7 @@ let elogf logger logLevel exn format =
 // (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
 // format specifier (like %s or %+6.4d)
 let logMsgParamNameRegex =
-    new Regex("""(%[0\-+ ]?\d*(\.\d+)?[a-zA-Z])(\{[^}]+\})""", RegexOptions.ECMAScript)
+    Regex("""(%[0\-+ ]?\d*(\.\d+)?[a-zA-Z])(\{[a-zA-Z0-9]+\})""", RegexOptions.ECMAScript)
 
 // For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
 // or they would show up in the console output unintentionally.
