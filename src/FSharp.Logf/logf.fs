@@ -15,7 +15,6 @@ open BlackFox.MasterOfFoo
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
-    //let mutable justEmittedArgument = false
     let mutable lastArg : PrintableElement option = None
     let logFormatSpecifierRegex = Regex("""\A{[^}]+}""")
     let args = new System.Collections.Generic.List<obj>()
@@ -72,16 +71,14 @@ let elogf logger logLevel exn format =
 
 #else
 
-// matches a printf-style format specifier (like %s or %+6.4d) followed
-// immediately by a log message param specifier (like {myValue}) matches a log
-// message param specifier (like {myValue}) coming immediately after a
-// printf-style format specifier (like %s or %+6.4d)
+// matches a printf-style format specifier (like %s or %+6.4d) followed immediately by a log message param specifier
+// (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
+// format specifier (like %s or %+6.4d)
 let private logMsgParamNameRegex =
     new Regex("""(%[0\-+ ]?\d*(\.\d+)?[a-zA-Z])(\{[^}]+\})""", RegexOptions.ECMAScript)
 
-// For the JS implementation, just print to console. First, however, we have to
-// strip any log message param specifiers or they would show up in the console
-// output unintentionally.
+// For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
+// or they would show up in the console output unintentionally.
 
 let inline private stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
@@ -95,12 +92,16 @@ let private printToConsole logLevel (m: obj) =
     | LogLevel.Trace -> Fable.Core.JS.console.debug (string m)
     | _ -> Fable.Core.JS.console.log m
 
-let logf (_: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (printToConsole logLevel) (stripLogMsgParamNames format)
-let elogf (_: ILogger) logLevel (exn: Exception) (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun s ->
-        printToConsole logLevel s
-        printToConsole logLevel exn
+// Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
+// everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
+let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
+    Printf.ksprintf (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x))) (stripLogMsgParamNames format)
+let elogf (_: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
+    Printf.ksprintf (fun (s:string) ->
+        raise (NotImplementedException())
+        // printToConsole logLevel s
+        // printToConsole logLevel exn
+        ()
     ) format
 
 #endif
