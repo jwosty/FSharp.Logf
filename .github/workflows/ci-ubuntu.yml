@@ -27,4 +27,4 @@ jobs:
     - name: Build
       run: ./build.sh -t Build
     - name: Test
-      run: dotnet fake build -t Test
+      run: ./build.sh -t Test
