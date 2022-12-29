@@ -1,0 +1,29 @@
+name: CI (Ubuntu)
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ci-ubuntu:
+    name: CI (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    # takes .NET version from global.json
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+    - name: Restore dependencies
+      run: |
+        dotnet tool restore
+        dotnet paket restore
+        yarn install
+    - name: Build
+      run: ./build.sh -t Build
+    - name: Test
+      run: dotnet fake build -t Test
