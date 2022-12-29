@@ -195,6 +195,18 @@ let allTests =
                         { emptyLogLine with message = "{XYZ{}-797}" }
 #endif
                 )
+                sharedTestCase "case 5" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    // Note: %f.5 isn't a valid format specifier, which is why the {x} should get escaped
+                    logfOrElogf l LogLevel.Information "{%.4f{}%d}%f.10{x}" 100.2 -797 1.
+                    
+                    l.LastLine |> Expect.equal "Log lines"
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "{{100.2000{{}}-797}}1.000000.10{{x}}" }
+#else
+                        { emptyLogLine with message = "{100.2000{}-797}1.000000.10{x}" }
+#endif
+                )
             ]
             
             testList "Can print various named parameters" [
@@ -220,7 +232,18 @@ let allTests =
                         { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): 234.000000,100.000000" }
 #endif
                 )
-                sharedTestCase "advanced fmt specifiers" (fun logfOrElogf emptyLogLine ->
+                sharedTestCase "param names may contain alphanumerics or underscores" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    
+                    logfOrElogf l LogLevel.Information "%f{param1},%f{2param},%f{foo_bar}" 234. 100. 3.
+                    l.LastLine |> Expect.equal "Log lines" 
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "{param1},{2param},{foo_bar}"; args = ["param1", 234.0; "2param", 100.0; "foo_bar", 3.] }
+#else
+                        { emptyLogLine with message = "234.000000,100.000000,3.000000" }
+#endif
+                )
+                sharedTestCase "fmt specs with precision" (fun logfOrElogf emptyLogLine ->
                     let l = mkLogger ()
                     
                     logfOrElogf l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
@@ -229,6 +252,17 @@ let allTests =
                         { emptyLogLine with message = "Params: {a},{b},{c}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
 #else
                         { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
+#endif
+                )
+                sharedTestCase "fmt specs with flags, width, and precision" (fun logfOrElogf emptyLogLine ->
+                    let l = mkLogger ()
+                    
+                    logfOrElogf l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
+                    l.LastLine |> Expect.equal "Log lines" 
+#if !FABLE_COMPILER
+                        { emptyLogLine with message = "{xyz} {abc} {d} {w}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+#else
+                        { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
 #endif
                 )
             ]

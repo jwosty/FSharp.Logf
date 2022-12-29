@@ -11,12 +11,28 @@ open BlackFox.MasterOfFoo
 
 // TODO: write tests
 
+// see: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/plaintext-formatting#format-specifiers-for-printf
+// TODO: This probably isn't quite perfect -- there are likely still some obscure corner cases that this doesn't
+// handle correctly. For anyone looking into this, you could prod it with things that aren't quite valid printf format
+// specifiers and make sure that it doesn't identify them as such. For example: I suspect flags are supposed to only
+// appear once (+++++ is probably not valid). Another example: flags, width, precision can only be there for certain
+// format types, like %f, but not others, like %s. Finally, not all a-zA-Z chars are format types. For example, %z
+// shouldn't be recognized as a format specifier.
+// These edge cases are getting pretty out there though, so I don't expect them to come up often... If you run into one,
+// filing an issue would be great!  
+let printfFmtSpecPattern =
+    """%"""
+    + """(0|-|\+)*"""   // flags
+    + """[0-9]*"""      // width
+    + """(\.\d+)?"""    // precision
+    + """[a-zA-Z]"""    // type
+
 #if !FABLE_COMPILER
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    let logFormatSpecifierRegex = Regex("""\A{[a-zA-Z0-9]+}""")
+    let logFormatSpecifierRegex = Regex("""\A{[a-zA-Z0-9_]+}""")
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
     // but the F# compiler doesn't give us a way to disambiguate this. So, to work around, we make it generic and
@@ -76,7 +92,7 @@ type private LogfEnv(logger, logLevel, ?exn) =
 //      * 1st match: "a" = "", "b" = "{", "${a}${b}${b}" = "{{"
 //      * 2nd match: "a" = "", "b" = "}", "${a}${b}${b}" = "}}"
 //      * Output: foo{{bar}}
-let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>%(\.\d+)?[a-zA-Z]\{[a-zA-Z0-9]+\})|(?<b>[\{\}])""")
+let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + """\{[a-zA-Z0-9_]+\})|(?<b>[\{\}])""")
 
 let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
@@ -93,7 +109,7 @@ let elogf logger logLevel exn format =
 // (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
 // format specifier (like %s or %+6.4d)
 let logMsgParamNameRegex =
-    Regex("""(%[0\-+ ]?\d*(\.\d+)?[a-zA-Z])(\{[a-zA-Z0-9]+\})""", RegexOptions.ECMAScript)
+    Regex("""(""" + printfFmtSpecPattern + """)(\{[a-zA-Z0-9_]+\})""", RegexOptions.ECMAScript)
 
 // For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
 // or they would show up in the console output unintentionally.
