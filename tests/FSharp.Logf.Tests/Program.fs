@@ -4,6 +4,7 @@ open System.Collections.Generic
 open FSharp.Logf
 #if FABLE_COMPILER
 open Fable.Mocha
+open Fable.Mocha.Flip
 open Fable.Microsoft.Extensions.Logging
 #else
 open Expecto
@@ -63,8 +64,9 @@ let allTests =
                 let l = mkLogger ()
                 logf l LogLevel.Information "FooBar."
                 logf l LogLevel.Information "BANANA!123"
+                
                 l.Lines |> Seq.map LogLine.message
-                |> Expect.sequenceEqual "" ["FooBar."; "BANANA!123"]
+                |> Expect.sequenceEqual "messages" ["FooBar."; "BANANA!123"]
             )
         ]
     ]

@@ -2,7 +2,7 @@
 module Fable.Mocha.Expect
 open Fable.Mocha
 
-let inline sequenceEqual (actual: 'a seq) (expected: 'a seq) (msg: string) = Expect.equal actual expected msg
+let inline sequenceEqual (actual: #seq<'a>) (expected: #seq<'a>) (msg: string) = Expect.equal actual expected msg
 let throws (f: unit -> unit) (msg: string) : unit =
     let pass =
         try

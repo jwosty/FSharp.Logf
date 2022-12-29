@@ -8,6 +8,7 @@ type LogLevel = | Trace = 0 | Debug = 1 | Information = 2 | Warning = 3 | Error 
 type EventId(id: int, name: string) =
     member _.Id = id
     member _.Name = name
+    new(id) = EventId(id, null)
 
 // Fable proxy of Microsoft.Extensions.Logging.ILogger:
 // https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.logging.ilogger?view=dotnet-plat-ext-6.0

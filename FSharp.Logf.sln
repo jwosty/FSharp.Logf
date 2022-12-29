@@ -21,6 +21,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution files", "Solution 
 		.gitignore = .gitignore
 		build.cmd = build.cmd
 		build.sh = build.sh
+		package.json = package.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B76BF83C-9A8F-4938-9301-F00D3020A1B7}"
