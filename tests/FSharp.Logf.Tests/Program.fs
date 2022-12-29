@@ -301,6 +301,20 @@ module Main =
     let main args =
 #if FABLE_COMPILER
         Mocha.runTests allTests
+        // Uncomment these for a sort of manual "integration" test
+        // let ml = ConsoleLogger()
+        // let x = "world"
+        // logft ml "Trace %s{arg}." x
+        // logfd ml "Debug %s{arg}." x
+        // logfi ml "Info %s{arg}." x
+        // logfw ml "Warning %s{arg}." x
+        // logfe ml "Error %s{arg}." x
+        // logfc ml "Critical %s{arg}." x
+        // let err = try raise (DummyException()) with e -> e
+        // elogfw ml err "(exn) Warning %s{arg}." x
+        // elogfe ml err "(exn) Error %s{arg}." x
+        // elogfc ml err "(exn) Critical %s{arg}." x
+        // 0
 #else
         runTestsWithArgs defaultConfig args allTests
 #endif

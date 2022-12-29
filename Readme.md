@@ -51,10 +51,10 @@ open Microsoft.Extensions.Logging
 #endif
 
 let ml =
-#if FABLE_COMPILER
-    ConsoleLogger
+#if !FABLE_COMPILER
+    LoggerFactory.Create(fun builder -> builder.AddConsole().SetMinimumLevel(LogLevel.Debug) |> ignore)
 #else
-    xyz
+    ConsoleLogger()
 #endif
 
 logfi ml "Hello, world"

@@ -9,6 +9,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="ILogger.fs" />
+    <Compile Include="ConsoleLogger.fs" />
     <Compile Include="logf.fsi" />
     <Compile Include="logf.fs" />
   </ItemGroup>

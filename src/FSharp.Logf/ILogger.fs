@@ -16,9 +16,3 @@ type ILogger =
     abstract BeginScope<'TState> : state:'TState -> IDisposable
     abstract IsEnabled : logLevel:LogLevel -> bool
     abstract Log<'TState> : logLevel:LogLevel * eventId:EventId * state:'TState * [<Optional; DefaultParameterValue(null:exn)>] ``exception``:exn * Func<'TState,exn,string> -> unit
-
-// https://github.com/dotnet/runtime/blob/215b39abf947da7a40b0cb137eab4bceb24ad3e3/src/libraries/Microsoft.Extensions.Logging.Abstractions/src/LoggerExtensions.cs
-// module LoggerExtensions =
-//     type ILogger with
-//         member this.LogDebug (eventId: EventId, ?``exception``: exn, ?message: string, [<ParamArray>] ?arg: obj[]) =
-//             this.Log (LogLevel.Debug, eventId, ``exception``, message, args)

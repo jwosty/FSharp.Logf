@@ -117,14 +117,6 @@ let logMsgParamNameRegex =
 let inline stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
     (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
-    
-let printToConsole logLevel (m: obj) =
-    match logLevel with
-    | LogLevel.Critical | LogLevel.Error -> Fable.Core.JS.console.error m
-    | LogLevel.Warning -> Fable.Core.JS.console.warn m
-    | LogLevel.Information -> Fable.Core.JS.console.info m
-    | LogLevel.Trace -> Fable.Core.JS.console.debug (string m)
-    | _ -> Fable.Core.JS.console.log m
 
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
