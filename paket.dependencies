@@ -15,6 +15,7 @@ group Build
     framework: net6.0
     
     nuget Fake.DotNet.Paket ~> 5.23.1
+nuget Fake.JavaScript.Yarn
     nuget FSharp.Core >= 6
     nuget Fake.Core.Target ~> 5.23.1
     nuget Fake.DotNet.Cli ~> 5.23.1

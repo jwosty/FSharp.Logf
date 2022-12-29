@@ -4,6 +4,7 @@ open Fake.IO
 open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
 open Fake.DotNet
+open Fake.JavaScript
 
 module Folder =
     let src = "src"
@@ -51,7 +52,7 @@ let BuildDotNet _ =
     DotNet.build (fun bo -> { bo with Configuration = buildCfg; NoRestore = true }) Projects.sln
 
 let BuildFable _ =
-    Trace.log " -- Building fable projects --"
+    Trace.log " -- Building Fable projects --"
     ()
 
 let Build _ = ()
@@ -61,7 +62,8 @@ let TestDotNet _ =
     DotNet.test (fun ``to`` -> { ``to`` with NoRestore = true; NoBuild = true; Configuration = buildCfg }) Projects.sln
 
 let TestFable _ =
-    Trace.log " -- Running fable tests --"
+    Trace.log " -- Running Fable tests --"
+    Yarn.exec "test" id
     ()
 
 let Test _ = ()
