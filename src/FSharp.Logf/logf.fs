@@ -96,12 +96,11 @@ let private printToConsole logLevel (m: obj) =
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
 let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
     Printf.ksprintf (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x))) (stripLogMsgParamNames format)
-let elogf (_: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun (s:string) ->
-        raise (NotImplementedException())
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
+    Printf.ksprintf (fun (x:string) ->
+        logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
         // printToConsole logLevel s
         // printToConsole logLevel exn
-        ()
     ) format
 
 #endif
@@ -110,7 +109,7 @@ let logft logger format = logf logger LogLevel.Trace format
 let logfd logger format = logf logger LogLevel.Debug format
 let logfi logger format = logf logger LogLevel.Information format
 let logfw logger format = logf logger LogLevel.Warning format
-let elogfw logger exn format = elogf logger LogLevel.Error exn format
+let elogfw logger exn format = elogf logger LogLevel.Warning exn format
 let logfe logger format = logf logger LogLevel.Error format
 let elogfe logger exn format = elogf logger LogLevel.Error exn format
 let logfc logger format = logf logger LogLevel.Critical format
