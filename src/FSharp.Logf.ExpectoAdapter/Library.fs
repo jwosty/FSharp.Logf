@@ -1,31 +1,28 @@
-﻿namespace FSharp.Logf
+﻿namespace FSharp.Logf.Expecto
 open System
 open System.Collections.Generic
-open Microsoft.Extensions.Logging
 open Expecto.Logging
 
-type MILogger = Microsoft.Extensions.Logging.ILogger
-type MLogLevel = Microsoft.Extensions.Logging.LogLevel
-type ELogLevel = Expecto.Logging.LogLevel
-type ELogger = Expecto.Logging.Logger
-
-/// Exposes an Expecto Logger as an MS Logger
-type ExpectoMsLoggerAdapter(el: ELogger) =
+/// <summary>
+///     Adapts an Expecto <see cref="Expecto.Logging.Logger" /> to the Microsoft
+///     <see cref="T:Microsoft.Extensions.Logging.ILogger" /> interface.
+/// </summary>
+type ExpectoMsLoggerAdapter(el: Expecto.Logging.Logger) =
     let theName = el.name
     
     let mToELogLevel = function
-        | MLogLevel.None -> ValueNone
-        | MLogLevel.Trace -> ValueSome ELogLevel.Verbose
-        | MLogLevel.Debug -> ValueSome ELogLevel.Debug
-        | MLogLevel.Information -> ValueSome ELogLevel.Info
-        | MLogLevel.Warning -> ValueSome ELogLevel.Warn
-        | MLogLevel.Error -> ValueSome ELogLevel.Error
-        | MLogLevel.Critical | _ -> ValueSome ELogLevel.Fatal
+        | Microsoft.Extensions.Logging.LogLevel.None -> ValueNone
+        | Microsoft.Extensions.Logging.LogLevel.Trace -> ValueSome Expecto.Logging.LogLevel.Verbose
+        | Microsoft.Extensions.Logging.LogLevel.Debug -> ValueSome Expecto.Logging.LogLevel.Debug
+        | Microsoft.Extensions.Logging.LogLevel.Information -> ValueSome Expecto.Logging.LogLevel.Info
+        | Microsoft.Extensions.Logging.LogLevel.Warning -> ValueSome Expecto.Logging.LogLevel.Warn
+        | Microsoft.Extensions.Logging.LogLevel.Error -> ValueSome Expecto.Logging.LogLevel.Error
+        | Microsoft.Extensions.Logging.LogLevel.Critical | _ -> ValueSome Expecto.Logging.LogLevel.Fatal
     
-    interface MILogger with
+    interface Microsoft.Extensions.Logging.ILogger with
         override this.BeginScope<'TState>(state: 'TState) = { new IDisposable with override this.Dispose () = () }
         override this.IsEnabled(logLevel: Microsoft.Extensions.Logging.LogLevel) = true
-        override this.Log<'TState>(logLevel: MLogLevel, eventId: EventId, state: 'TState, exn: exn, formatter: Func<'TState, exn, string>) =
+        override this.Log<'TState>(logLevel: Microsoft.Extensions.Logging.LogLevel, eventId: Microsoft.Extensions.Logging.EventId, state: 'TState, exn: exn, formatter: Func<'TState, exn, string>) =
             let messageFactory eLogLevel : Message =
                 let msg, props =
                     match state :> obj with
@@ -73,7 +70,14 @@ type ExpectoMsLoggerAdapter(el: ELogger) =
             | ValueSome eLogLevel -> el.log eLogLevel messageFactory |> Async.Start
             | ValueNone -> ()
 
+/// <summary>
+///     Extension methods for Expecto <see cref="T:Expecto.Logging.Logger" /> objects.
+/// </summary>
 [<AutoOpen>]
 module Extensions =
     type Expecto.Logging.Logger with
-        member el.AsMsLogger () = ExpectoMsLoggerAdapter(el) :> MILogger
+        /// <summary>
+        ///     Turns an Expecto <see cref="Expecto.Logging.Logger" /> into a Microsoft
+        ///     <see cref="T:Microsoft.Extensions.Logging.ILogger" />.
+        /// </summary>
+        member el.AsMsLogger () = ExpectoMsLoggerAdapter(el) :> Microsoft.Extensions.Logging.ILogger

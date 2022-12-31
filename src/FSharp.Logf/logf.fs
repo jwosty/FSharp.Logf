@@ -129,6 +129,11 @@ let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Forma
 
 #endif
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="logger"></param>
+/// <param name="format"></param>
 let logft logger format = logf logger LogLevel.Trace format
 let logfd logger format = logf logger LogLevel.Debug format
 let logfi logger format = logf logger LogLevel.Information format

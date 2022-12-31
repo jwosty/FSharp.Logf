@@ -1,6 +1,4 @@
-# logf - printf-style functions for ILogger
-
-[![CI (Ubuntu)](https://github.com/jwosty/FSharp.Logf/actions/workflows/ci-ubuntu.yml/badge.svg)](https://github.com/jwosty/FSharp.Logf/actions/workflows/ci-ubuntu.yml)
+# FSharp.Logf
 
 This library implements printf-style logging functions for any Microsoft.Extensions.Logging.ILogger, allowing you to log in an F# style with the full power of structured logging.
 Here's an example, adding logging to the snippet from https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async#combine-asynchronous-computations:

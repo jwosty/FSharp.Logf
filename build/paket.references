@@ -6,3 +6,4 @@ Fake.DotNet.Cli
 Microsoft.Build
 Microsoft.Build.Framework
 Fake.JavaScript.Yarn
+Fake.Tools.Git

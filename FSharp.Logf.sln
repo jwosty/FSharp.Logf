@@ -30,6 +30,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf.Tests", "tests\
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "build", "build\build.fsproj", "{F06A5972-A392-487F-BA54-54C11AEF4309}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EE03E9A5-3595-4A09-999C-AB11E68B3575}"
+	ProjectSection(SolutionItems) = preProject
+		docs\index.md = docs\index.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -3,6 +3,9 @@ open System
 open Fable.Microsoft.Extensions.Logging
 open Fable.Core.JS
 
+/// <summary>
+///     A logging provider which outputs to the Javascript console object for Fable environments.
+/// </summary>
 type ConsoleLogger(?prependLevelToEntries, ?logLevel: LogLevel) =
     let prependLevelToEntries = defaultArg prependLevelToEntries true
     member val LogLevel = defaultArg logLevel LogLevel.Debug

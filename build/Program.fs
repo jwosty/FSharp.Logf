@@ -5,6 +5,7 @@ open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
 open Fake.DotNet
 open Fake.JavaScript
+open Fake.Tools
 
 module Folder =
     let src = "src"
@@ -13,10 +14,12 @@ module Folder =
 module Projects =
     open Folder
     let sln = "FSharp.Logf.sln"
-    let logfLib = src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj"
+    let logfLib = src </> "FSharp.Logf" </> "FSharp.Logf.fsproj"
     let expectoAdapterLib = src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj"
     let suaveAdapterLib = src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj"
     let test = test </> "FSharp.Logf.Tests" </> "FSharp.Logf.Tests.fsproj"
+
+let repoUrl = "https://github.com/jwosty/FSharp.Logf"
 
 let buildCfg = DotNet.BuildConfiguration.fromEnvironVarOrDefault "CONFIGURATION" DotNet.BuildConfiguration.Release
 
@@ -33,17 +36,19 @@ let Clean (args: TargetParameter) =
         ++"packages"
         --("build" </> "**")
     outputDirs
-    // |> Seq.map (fun x -> Trace.logfn "Removing: '%s'" x; x)
     |> Seq.iter deleteDir
     if isDryRun then
         Trace.logfn "Would execute: dotnet fable clean --yes"
     else
         DotNet.exec id "fable" "clean --yes" |> ignore
+        
+    deleteDir ".fsdocs"
 
 let Restore _ =
     Trace.log " -- Restoring --"
     // Can't get Paket.restore to work because it fails with:
     //      An error occurred trying to start process 'paket' with working directory '.'. No such file or directory
+    // So instead just use this way to invoke it
     DotNet.exec id "paket" "restore" |> ignore
     DotNet.restore id Projects.sln
 
@@ -64,12 +69,38 @@ let TestDotNet _ =
 let TestFable _ =
     Trace.log " -- Running Fable tests --"
     Yarn.exec "test" id
-    ()
 
 let Test _ = ()
 
 let Pack _ = ()
 
+let BuildDocs _ =
+    // Can't use .NET 6.0.4xx due to: https://github.com/fsprojects/FSharp.Formatting/issues/616
+    // And can't use .NET 7 due to: https://github.com/fable-compiler/Fable/issues/3294
+    // So, in global.json, force .NET 6.0.3xx
+    Trace.log " --- Building documentation --- "
+    if buildCfg <> DotNet.BuildConfiguration.Release then
+        failwithf "Build configuration must be set to 'Release' when building docs. Try again with `CONFIGURATION=Release ./build.sh -t BuildDocs`"
+    let result = DotNet.exec id "fsdocs" ("build --clean --properties Configuration=Release")
+    Trace.logfn "%s" (result.ToString())
+    
+let WatchDocs _ =
+    Trace.log " --- Building and watching documentation --- "
+    if buildCfg <> DotNet.BuildConfiguration.Release then
+        failwithf "Build configuration must be set to 'Release' when building docs. Try again with `CONFIGURATION=Release ./build.sh -t WatchDocs`"
+    let result = DotNet.exec id "fsdocs" ("watch --clean --properties Configuration=Release")
+    Trace.logfn "%s" (result.ToString())
+
+let ReleaseDocs _ =
+    Trace.log "--- Releasing documentation --- "
+    Git.CommandHelper.runSimpleGitCommand "." (sprintf "clone %s temp/gh-pages --depth 1 -b gh-pages" repoUrl) |> ignore
+    Shell.copyRecursive "output" "temp/gh-pages" true |> printfn "%A"
+    Git.CommandHelper.runSimpleGitCommand "temp/gh-pages" "add ." |> printfn "%s"
+    let commit = Git.Information.getCurrentHash ()
+    Git.CommandHelper.runSimpleGitCommand "temp/gh-pages"
+        (sprintf """commit -a -m "Update generated docs from %s" """ commit)
+    |> printfn "%s"
+    Git.Branches.pushBranch "temp/gh-pages" "origin" "gh-pages"
 
 open Fake.Core.TargetOperators
 
@@ -86,11 +117,15 @@ let initTargets () =
     Target.create (nameof TestFable) TestFable
     Target.create (nameof Test) Test
     Target.create (nameof Pack) Pack
+    Target.create (nameof BuildDocs) BuildDocs
+    Target.create (nameof WatchDocs) WatchDocs
+    Target.create (nameof ReleaseDocs) ReleaseDocs
     
     nameof Restore ==> nameof BuildDotNet ==> nameof TestDotNet
     nameof Restore ==> nameof BuildFable ==> nameof TestFable
     nameof Build <== [nameof BuildDotNet; nameof BuildFable]
     nameof Test <== [nameof TestDotNet; nameof TestFable]
+    nameof BuildDotNet ==> nameof BuildDocs ==> nameof ReleaseDocs
 
 [<EntryPoint>]
 let main argv =

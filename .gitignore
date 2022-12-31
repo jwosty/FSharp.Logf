@@ -452,3 +452,8 @@ packages/
 ### Fable ###
 *.fs.js
 *.fs.js.map
+
+### fsdocs ###
+output/
+tmp/
+.fsdocs/

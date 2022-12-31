@@ -1,4 +1,4 @@
-﻿module FSharp.Logf
+﻿namespace FSharp.Logf.Suave
 open System
 open System.Collections.Generic
 open System.IO
@@ -8,22 +8,19 @@ open System.Threading
 open System.Threading.Tasks
 open Microsoft.Extensions.Logging
 
-type MILogger = Microsoft.Extensions.Logging.ILogger
-type MLogLevel = Microsoft.Extensions.Logging.LogLevel
-type SLogLevel = Suave.Logging.LogLevel
-type SLogger = Suave.Logging.Logger
-type SMessage = Suave.Logging.Message
-module SMessage = Suave.Logging.Message
 
-/// Exposes an MS ILogger as a Suave Logger
-type MsSuaveLoggerAdapter(ml: MILogger) =
+/// <summary>
+///     Adapts a Suave <see cref="Suave.Logging.Logger" /> to the Microsoft
+///     <see cref="T:Microsoft.Extensions.Logging.ILogger" /> interface.
+/// </summary>
+type MsSuaveLoggerAdapter(ml: Microsoft.Extensions.Logging.ILogger) =
     let sToMLogLevel = function
-        | SLogLevel.Verbose -> MLogLevel.Trace
-        | SLogLevel.Debug -> MLogLevel.Debug
-        | SLogLevel.Info -> MLogLevel.Information
-        | SLogLevel.Warn -> MLogLevel.Warning
-        | SLogLevel.Error -> MLogLevel.Error
-        | SLogLevel.Fatal | _ -> MLogLevel.Critical
+        | Suave.Logging.LogLevel.Verbose -> Microsoft.Extensions.Logging.LogLevel.Trace
+        | Suave.Logging.LogLevel.Debug -> Microsoft.Extensions.Logging.LogLevel.Debug
+        | Suave.Logging.LogLevel.Info -> Microsoft.Extensions.Logging.LogLevel.Information
+        | Suave.Logging.LogLevel.Warn -> Microsoft.Extensions.Logging.LogLevel.Warning
+        | Suave.Logging.LogLevel.Error -> Microsoft.Extensions.Logging.LogLevel.Error
+        | Suave.Logging.LogLevel.Fatal | _ -> Microsoft.Extensions.Logging.LogLevel.Critical
 
     // matches the FOO part of things like {FOO} and {FOO:#.#}
     let fmtParamRegex = Regex """\{([^}^:]+)(:[^}]*)?\}"""
@@ -54,12 +51,15 @@ type MsSuaveLoggerAdapter(ml: MILogger) =
                         |> Seq.map (fun fmtArg -> msg.fields |> Map.tryFind fmtArg |> Option.toObj) 
                         |> Seq.toArray
                     // TODO: Set EventId to something based off the Logary message name or what have you
-                    ml.Log (mLogLevel, EventId(0), exn, fmt, fmtParams)
+                    ml.Log (mLogLevel, Microsoft.Extensions.Logging.EventId(0), exn, fmt, fmtParams)
                 | _ ->
 #if DEBUG
                     raise (NotImplementedException())
 #else
-                    ml.Log (mLogLevel, EventId(0), exn, "Unknown log message value: {value}", [|msg.value|])
+                    ml.Log (Microsoft.Extensions.Logging.LogLevel.Warning, EventId(0), exn,
+                            "Unimplemented log message type. The following entry may not display correctly. Please report this at: {reportUrl}",
+                            [|"https://github.com/jwosty/FSharp.Logf/issues"|])
+                    ml.Log (mLogLevel, EventId(0), exn, "{value}", [|msg.value|])
 #endif
             with
             | :? NotImplementedException -> reraise ()
@@ -67,7 +67,14 @@ type MsSuaveLoggerAdapter(ml: MILogger) =
                 // If we don't do this, this class doesn't show up in the stacktrace at all! Makes it way harder to debug...
                 raise (Exception("Error while logging", e))
 
+/// <summary>
+///     Extension methods for Suave <see cref="T:Suave.Logging.Logger" /> objects.
+/// </summary>
 [<AutoOpen>]
 module Extensions =
     type Microsoft.Extensions.Logging.ILogger with
-        member ml.AsSuaveLogger () = MsSuaveLoggerAdapter(ml) :> SLogger
+        /// <summary>
+        ///     Turns a Suave <see cref="Expecto.Logging.Logger" /> into a Microsoft
+        ///     <see cref="T:Microsoft.Extensions.Logging.ILogger" />.
+        /// </summary>
+        member ml.AsSuaveLogger () = MsSuaveLoggerAdapter(ml) :> Suave.Logging.Logger
