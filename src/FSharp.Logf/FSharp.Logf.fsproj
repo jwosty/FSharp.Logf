@@ -8,7 +8,9 @@
   <PropertyGroup>
     <Version>1.0.0</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/jwosty/FSharp.Logf</RepositoryUrl>
+    <RepositoryBranch>master</RepositoryBranch>
     <FsDocsReleaseNotesLink>$(RepositoryUrl)/blob/master/CHANGELOG.md</FsDocsReleaseNotesLink>
     <FsDocsLicenseLink>$(RepositoryUrl)/blob/master/LICENSE</FsDocsLicenseLink>
   </PropertyGroup>
