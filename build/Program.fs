@@ -20,6 +20,7 @@ module Projects =
     let test = test </> "FSharp.Logf.Tests" </> "FSharp.Logf.Tests.fsproj"
 
 let repoUrl = "https://github.com/jwosty/FSharp.Logf"
+let repoSshUrl = "git@github.com:jwosty/FSharp.Logf.git"
 
 let buildCfg = DotNet.BuildConfiguration.fromEnvironVarOrDefault "CONFIGURATION" DotNet.BuildConfiguration.Release
 
@@ -93,14 +94,14 @@ let WatchDocs _ =
 
 let ReleaseDocs _ =
     Trace.log "--- Releasing documentation --- "
-    Git.CommandHelper.runSimpleGitCommand "." (sprintf "clone %s temp/gh-pages --depth 1 -b gh-pages" repoUrl) |> ignore
-    Shell.copyRecursive "output" "temp/gh-pages" true |> printfn "%A"
-    Git.CommandHelper.runSimpleGitCommand "temp/gh-pages" "add ." |> printfn "%s"
+    Git.CommandHelper.runSimpleGitCommand "." (sprintf "clone %s tmp/gh-pages --depth 1 -b gh-pages" repoSshUrl) |> ignore
+    Shell.copyRecursive "output" "tmp/gh-pages" true |> printfn "%A"
+    Git.CommandHelper.runSimpleGitCommand "tmp/gh-pages" "add ." |> printfn "%s"
     let commit = Git.Information.getCurrentHash ()
-    Git.CommandHelper.runSimpleGitCommand "temp/gh-pages"
+    Git.CommandHelper.runSimpleGitCommand "tmp/gh-pages"
         (sprintf """commit -a -m "Update generated docs from %s" """ commit)
     |> printfn "%s"
-    Git.Branches.pushBranch "temp/gh-pages" "origin" "gh-pages"
+    Git.Branches.pushBranch "tmp/gh-pages" "origin" "gh-pages"
 
 open Fake.Core.TargetOperators
 
