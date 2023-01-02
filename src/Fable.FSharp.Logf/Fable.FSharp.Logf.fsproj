@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="ConsoleLogger.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Project reference is preventing docs from build and I don't have a workaround... So, no docs for this project for now... https://github.com/fsprojects/FSharp.Formatting/issues/680 -->
+    <ProjectReference Include="..\FSharp.Logf\FSharp.Logf.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
