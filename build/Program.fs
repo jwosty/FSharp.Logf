@@ -82,14 +82,15 @@ let BuildDocs _ =
     Trace.log " --- Building documentation --- "
     if buildCfg <> DotNet.BuildConfiguration.Release then
         failwithf "Build configuration must be set to 'Release' when building docs. Try again with `CONFIGURATION=Release ./build.sh -t BuildDocs`"
-    let result = DotNet.exec id "fsdocs" ("build --clean --properties Configuration=Release")
+    DotNet.build (fun bo -> { bo with Configuration = buildCfg; NoRestore = true; MSBuildParams = { bo.MSBuildParams with Properties = ("WORKAROUND_MISSING_DOCS", "True") :: bo.MSBuildParams.Properties } }) Projects.sln
+    let result = DotNet.exec id "fsdocs" ("build --clean --properties Configuration=Release WORKAROUND_MISSING_DOCS=true")
     Trace.logfn "%s" (result.ToString())
     
 let WatchDocs _ =
     Trace.log " --- Building and watching documentation --- "
     if buildCfg <> DotNet.BuildConfiguration.Release then
         failwithf "Build configuration must be set to 'Release' when building docs. Try again with `CONFIGURATION=Release ./build.sh -t WatchDocs`"
-    let result = DotNet.exec id "fsdocs" ("watch --clean --properties Configuration=Release")
+    let result = DotNet.exec id "fsdocs" ("watch --clean --properties Configuration=Release WORKAROUND_MISSING_DOCS=true")
     Trace.logfn "%s" (result.ToString())
 
 let ReleaseDocs _ =
@@ -126,7 +127,7 @@ let initTargets () =
     nameof Restore ==> nameof BuildFable ==> nameof TestFable
     nameof Build <== [nameof BuildDotNet; nameof BuildFable]
     nameof Test <== [nameof TestDotNet; nameof TestFable]
-    nameof BuildDotNet ==> nameof BuildDocs ==> nameof ReleaseDocs
+    nameof Restore ==> nameof BuildDocs ==> nameof ReleaseDocs
 
 [<EntryPoint>]
 let main argv =

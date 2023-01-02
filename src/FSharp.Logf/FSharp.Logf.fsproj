@@ -14,11 +14,16 @@
     <FsDocsReleaseNotesLink>$(RepositoryUrl)/blob/master/CHANGELOG.md</FsDocsReleaseNotesLink>
     <FsDocsLicenseLink>$(RepositoryUrl)/blob/master/LICENSE</FsDocsLicenseLink>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="ILogger.fs" />
     <Compile Include="logf.fsi" />
     <Compile Include="logf.fs" />
+    <Compile Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' == 'True'" />
+    <None Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' != 'True'" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
