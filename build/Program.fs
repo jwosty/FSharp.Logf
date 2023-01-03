@@ -10,69 +10,21 @@ open Fake.DotNet
 open Fake.JavaScript
 open Fake.Tools
 
-module Folder =
-    let src = "src"
-    let test = "test"
-
-type NupkgMetadata = {
-    ``type``: string
-    description: string option
-    licenseExpression: string
-    tags: string
-    projectUrl: string
-    repositoryUrl: string
-    repositoryType: string
-    repositoryCommit: string
-    files: string list
-}
-
 let repoUrl = "https://github.com/jwosty/FSharp.Logf"
 let repoSshUrl = "git@github.com:jwosty/FSharp.Logf.git"
 
-let baseMetadata = lazy {
-    ``type`` = "project"
-    description = None
-    licenseExpression = "MIT"
-    tags = "f# fsharp logging log structured printf"
-    repositoryType = "git"
-    repositoryUrl = repoUrl
-    repositoryCommit = Git.Information.getCurrentHash ()
-    projectUrl = repoUrl
-    files = []
-}
-
-type Project = { path: string; metadata: NupkgMetadata }
-
-let mkProject path description additionalTags =
-    {
-        path = path
-        metadata = {
-            baseMetadata.Value with
-              description = Some description
-              tags = $"{baseMetadata.Value.tags} {additionalTags}"
-    } }
-
-// ensures that fsproj, fs, and fsi files are included in the output so that Fable will recognize the nupkg as
-// Fable-compatible
-let packFableFiles proj =
-    { proj with
-        metadata = {
-            proj.metadata with
-                files =
-                    List.append (
-                        ["*.fsproj";"**\*.fs"; "**\*.fsi"]
-                        |> List.map (fun p -> $"%s{p} ==> fable%c{Path.DirectorySeparatorChar}")
-                    )
-                        ["!**\obj\**\*"]
-    } }
+module Folder =
+    let src = "src"
+    let test = "test"
+    let artifacts = "artifacts"
 
 module Projects =
     open Folder
     let sln = "FSharp.Logf.sln"
-    let logfLib = mkProject (src </> "FSharp.Logf" </> "FSharp.Logf.fsproj") "Printf-style logging for structured loggers." "fable fable-library fable-javascript" |> packFableFiles
-    let fableLogfLib = mkProject (src </> "Fable.FSharp.Logf" </> "Fable.FSharp.Logf.fsproj") "ConsoleLogger support for Fable FSharp.Logf." "fable fable-library fable-dotnet fable-javascript" |> packFableFiles
-    let expectoAdapterLib = mkProject (src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj") "Expecto.Logging.ILogger -> Microsoft.Extensions.Logging.ILogger adapter" "expecto"
-    let suaveAdapterLib = mkProject (src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj") "Microsoft.Extensions.Logging.ILogger -> Suave.Logging.ILogger adapter" "suave"
+    let logfLib = (src </> "FSharp.Logf" </> "FSharp.Logf.fsproj")
+    let fableLogfLib = (src </> "Fable.FSharp.Logf" </> "Fable.FSharp.Logf.fsproj")
+    let expectoAdapterLib = (src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj")
+    let suaveAdapterLib = (src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj")
     let allLibs = [logfLib; fableLogfLib; expectoAdapterLib; suaveAdapterLib]
     let test = test </> "FSharp.Logf.Tests" </> "FSharp.Logf.Tests.fsproj"
 
@@ -115,7 +67,9 @@ let addVersionInfo (versionInfo: PackageVersionInfo) options =
     ] options
 
 let buildCfg = DotNet.BuildConfiguration.fromEnvironVarOrDefault "CONFIGURATION" DotNet.BuildConfiguration.Release
-
+let nugetPushSource = Environment.environVarOrDefault "NUGET_PUSH_SOURCE" "https://api.nuget.org/v3/index.json"
+let nugetPushApiKey = Environment.environVarOrNone "NUGET_PUSH_API_KEY"
+    
 let Clean (args: TargetParameter) =
     let isDryRun = args.Context.Arguments |> List.contains "--dry-run"
     Trace.logfn " -- Cleaning%s --" (if isDryRun then " (DRY RUN)" else "")
@@ -165,40 +119,22 @@ let TestFable _ =
 
 let Test _ = ()
 
-let GeneratePackageTemplates _ =
-    Trace.log " -- Generating paket.template files --"
-    for proj in Projects.allLibs do
-        let templateFilePath = Path.GetDirectoryName proj.path </> "paket.template"
-        Trace.logfn "  Writing: %s" templateFilePath
-        let renderedTemplate =
-            let fields = FSharp.Reflection.FSharpType.GetRecordFields (proj.metadata.GetType())
-            [
-                for field in fields do
-                    let value =
-                        match field.GetValue proj.metadata with
-                        | :? string as sV -> Some sV
-                        | :? option<string> as soV -> soV
-                        | :? list<string> as [] -> None
-                        | :? list<string> as slV ->
-                            "" :: slV
-                            |> String.concat (Environment.NewLine + "  ")
-                            |> Some
-                        | v -> failwithf $"Type not supported: %s{v.GetType().Name}"
-                    match value with
-                    | Some v -> yield (field.Name, v)
-                    | None -> ()
-            ]
-            |> Seq.map (fun (k,v) -> $"%s{k} %s{v}")
-        File.WriteAllLines (templateFilePath, renderedTemplate)
-
 let Pack _ =
     Trace.log " -- Creating nuget packages --"
     
-    DotNet.exec id "paket" $"pack ./artifacts --version {currentVersionInfo.versionName} --release-notes \"{currentVersionInfo.versionChanges}\"" |> ignore
-    // for proj in [Projects.logfLib] do
-        // Paket.pack (fun p -> { p with Version = currentVersionInfo.versionName; ReleaseNotes = currentVersionInfo.versionChanges })
-    // for proj in [Projects.logfLib; (*Projects.fableLogfLib;*) Projects.expectoAdapterLib; Projects.suaveAdapterLib] do
-    //     DotNet.pack (fun po -> { po with MSBuildParams = addVersionInfo currentVersionInfo po.MSBuildParams; Configuration = buildCfg; NoRestore = true; NoBuild = true }) proj
+    // TODO: would be nice to depend on the Build target and avoid a rebuild (so that CI can test and pack without
+    // building twice), but for some reason Fable.FSharp.Logf.fsproj blows up when you try to build it after build with
+    // NoBuild set. This is a minor issue.
+    DotNet.pack (fun po -> { po with MSBuildParams = addVersionInfo currentVersionInfo po.MSBuildParams; Configuration = buildCfg; NoRestore = true; OutputPath = Some Folder.artifacts }) Projects.sln
+
+let PublishNugetPackages _ =
+    Trace.log " -- Publishing NuGet packages --"
+    // Trace.logfn $"NUGET_SOURCE_URL = %s{nugetPushSource}"
+    
+    for pkg in !!(Folder.artifacts </> "*.nupkg") ++(Folder.artifacts </> "*.snupkg") do
+        Trace.logfn $"Pushing %s{pkg} to %s{nugetPushSource}"
+        DotNet.nugetPush (fun npo -> { npo with PushParams = { npo.PushParams with Source = Some nugetPushSource; ApiKey = nugetPushApiKey } }) pkg
+    ()
 
 let BuildDocs _ =
     // Can't use .NET 6.0.4xx due to: https://github.com/fsprojects/FSharp.Formatting/issues/616
@@ -243,8 +179,8 @@ let initTargets () =
     Target.create (nameof TestDotNet) TestDotNet
     Target.create (nameof TestFable) TestFable
     Target.create (nameof Test) Test
-    Target.create (nameof GeneratePackageTemplates) GeneratePackageTemplates
     Target.create (nameof Pack) Pack
+    Target.create (nameof PublishNugetPackages) PublishNugetPackages
     Target.create (nameof BuildDocs) BuildDocs
     Target.create (nameof WatchDocs) WatchDocs
     Target.create (nameof ReleaseDocs) ReleaseDocs
@@ -254,7 +190,7 @@ let initTargets () =
     nameof Build <== [nameof BuildDotNet; nameof BuildFable]
     nameof Test <== [nameof TestDotNet; nameof TestFable]
     nameof Restore ==> nameof BuildDocs ==> nameof ReleaseDocs
-    nameof BuildDotNet ==> nameof GeneratePackageTemplates ==> nameof Pack
+    nameof Restore ==> nameof Pack ==> nameof PublishNugetPackages
 
 [<EntryPoint>]
 let main argv =

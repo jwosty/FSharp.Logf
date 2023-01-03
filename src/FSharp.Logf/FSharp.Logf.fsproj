@@ -5,6 +5,7 @@
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);fable;fable-library;fable-dotnet;fable-javascript</PackageTags>
+    <Description>Printf-style logging for structured loggers.</Description>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE</DefineConstants>

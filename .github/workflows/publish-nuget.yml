@@ -1,0 +1,15 @@
+name: Publish NuGet
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  publish:
+    name: Publish NuGet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: PublishNugetPackages
+        env:
+          NUGET_PUSH_API_KEY: ${{ secrets.NUGET_PUSH_API_KEY }}
+        run: ./build.sh -t PublishNugetPackages

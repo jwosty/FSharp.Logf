@@ -6,6 +6,7 @@
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);expecto</PackageTags>
+    <Description>Expecto.Logging.ILogger -> Microsoft.Extensions.Logging.ILogger adapter</Description>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

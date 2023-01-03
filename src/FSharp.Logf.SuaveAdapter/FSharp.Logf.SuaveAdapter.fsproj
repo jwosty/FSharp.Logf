@@ -6,6 +6,7 @@
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);suave</PackageTags>
+    <Description>Microsoft.Extensions.Logging.ILogger -> Suave.Logging.ILogger adapter</Description>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

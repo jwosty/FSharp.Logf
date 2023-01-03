@@ -5,6 +5,7 @@
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);fable;fable-library;fable-javascript</PackageTags>
+    <Description>ConsoleLogger support for Fable FSharp.Logf.</Description>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />

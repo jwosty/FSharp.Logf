@@ -1,10 +1,6 @@
 name: CI (Ubuntu)
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [workflow_dispatch]
 
 jobs:
   ci-ubuntu:
@@ -12,19 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-          dotnet-version: '6.0.302'
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-    - name: Restore dependencies
-      run: |
-        dotnet tool restore
-        dotnet paket restore
-        yarn install
-    - name: Build
-      run: ./build.sh -t Build
-    - name: Test
-      run: ./build.sh -t Test
+      - uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+            dotnet-version: '6.0.302'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+      - name: Restore dependencies
+        run: |
+          dotnet tool restore
+          dotnet paket restore
+          yarn install
+      - name: Test
+        run: ./build.sh -t Test
