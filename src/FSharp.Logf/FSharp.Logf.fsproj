@@ -10,8 +10,8 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />
-    <Content Remove="**\obj\**\*" />
+<!--    <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />-->
+<!--    <Content Remove="**\obj\**\*" />-->
     <Compile Include="ILogger.fs" />
     <Compile Include="logf.fsi" />
     <Compile Include="logf.fs" />

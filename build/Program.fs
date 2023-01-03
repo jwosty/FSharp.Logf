@@ -16,13 +16,14 @@ module Folder =
 
 type NupkgMetadata = {
     ``type``: string
+    description: string option
     licenseExpression: string
     tags: string
     projectUrl: string
     repositoryUrl: string
     repositoryType: string
     repositoryCommit: string
-    description: string
+    files: string list
 }
 
 let repoUrl = "https://github.com/jwosty/FSharp.Logf"
@@ -30,25 +31,46 @@ let repoSshUrl = "git@github.com:jwosty/FSharp.Logf.git"
 
 let baseMetadata = lazy {
     ``type`` = "project"
-    description = ""
+    description = None
     licenseExpression = "MIT"
     tags = "f# fsharp logging log structured printf"
     repositoryType = "git"
     repositoryUrl = repoUrl
     repositoryCommit = Git.Information.getCurrentHash ()
     projectUrl = repoUrl
+    files = []
 }
 
 type Project = { path: string; metadata: NupkgMetadata }
 
 let mkProject path description additionalTags =
-    { path = path; metadata = { baseMetadata.Value with description = description; tags = $"{baseMetadata.Value.tags} {additionalTags}" } }
+    {
+        path = path
+        metadata = {
+            baseMetadata.Value with
+              description = Some description
+              tags = $"{baseMetadata.Value.tags} {additionalTags}"
+    } }
+
+// ensures that fsproj, fs, and fsi files are included in the output so that Fable will recognize the nupkg as
+// Fable-compatible
+let packFableFiles proj =
+    { proj with
+        metadata = {
+            proj.metadata with
+                files =
+                    List.append (
+                        ["*.fsproj";"**\*.fs"; "**\*.fsi"]
+                        |> List.map (fun p -> $"%s{p} ==> fable%c{Path.DirectorySeparatorChar}")
+                    )
+                        ["!**\obj\**\*"]
+    } }
 
 module Projects =
     open Folder
     let sln = "FSharp.Logf.sln"
-    let logfLib = mkProject (src </> "FSharp.Logf" </> "FSharp.Logf.fsproj") "Printf-style logging for structured loggers." "fable fable-library fable-javascript"
-    let fableLogfLib = mkProject (src </> "Fable.FSharp.Logf" </> "Fable.FSharp.Logf.fsproj") "ConsoleLogger support for Fable FSharp.Logf." "fable fable-library fable-dotnet fable-javascript"
+    let logfLib = mkProject (src </> "FSharp.Logf" </> "FSharp.Logf.fsproj") "Printf-style logging for structured loggers." "fable fable-library fable-javascript" |> packFableFiles
+    let fableLogfLib = mkProject (src </> "Fable.FSharp.Logf" </> "Fable.FSharp.Logf.fsproj") "ConsoleLogger support for Fable FSharp.Logf." "fable fable-library fable-dotnet fable-javascript" |> packFableFiles
     let expectoAdapterLib = mkProject (src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj") "Expecto.Logging.ILogger -> Microsoft.Extensions.Logging.ILogger adapter" "expecto"
     let suaveAdapterLib = mkProject (src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj") "Microsoft.Extensions.Logging.ILogger -> Suave.Logging.ILogger adapter" "suave"
     let allLibs = [logfLib; fableLogfLib; expectoAdapterLib; suaveAdapterLib]
@@ -147,13 +169,27 @@ let GeneratePackageTemplates _ =
     Trace.log " -- Generating paket.template files --"
     for proj in Projects.allLibs do
         let templateFilePath = Path.GetDirectoryName proj.path </> "paket.template"
-        Trace.logfn "Generating template: %s" templateFilePath
+        Trace.logfn "  Writing: %s" templateFilePath
         let renderedTemplate =
             let fields = FSharp.Reflection.FSharpType.GetRecordFields (proj.metadata.GetType())
-            [for field in fields -> field.Name, field.GetValue proj.metadata]
-            |> Seq.map (fun (k,v) -> $"{k} {v}")
+            [
+                for field in fields do
+                    let value =
+                        match field.GetValue proj.metadata with
+                        | :? string as sV -> Some sV
+                        | :? option<string> as soV -> soV
+                        | :? list<string> as [] -> None
+                        | :? list<string> as slV ->
+                            "" :: slV
+                            |> String.concat (Environment.NewLine + "  ")
+                            |> Some
+                        | v -> failwithf $"Type not supported: %s{v.GetType().Name}"
+                    match value with
+                    | Some v -> yield (field.Name, v)
+                    | None -> ()
+            ]
+            |> Seq.map (fun (k,v) -> $"%s{k} %s{v}")
         File.WriteAllLines (templateFilePath, renderedTemplate)
-    ()
 
 let Pack _ =
     Trace.log " -- Creating nuget packages --"
