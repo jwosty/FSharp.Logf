@@ -9,6 +9,9 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf", "src\FSharp.Logf\FSharp.Logf.fsproj", "{F482FADE-A438-4A10-955B-D2DA018A827A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{84FB3DB5-A541-4954-BC46-0FB432000725}"
+	ProjectSection(SolutionItems) = preProject
+		src\Directory.Build.props = src\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Logf.ExpectoAdapter", "src\FSharp.Logf.ExpectoAdapter\FSharp.Logf.ExpectoAdapter.fsproj", "{02E4EAAC-9B55-4D21-9499-FF610094815D}"
 EndProject
@@ -22,6 +25,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution files", "Solution 
 		build.cmd = build.cmd
 		build.sh = build.sh
 		package.json = package.json
+		CHANGELOG.md = CHANGELOG.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B76BF83C-9A8F-4938-9301-F00D3020A1B7}"

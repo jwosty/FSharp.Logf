@@ -4,26 +4,20 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Version>1.0.0</Version>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/jwosty/FSharp.Logf</RepositoryUrl>
-    <RepositoryBranch>master</RepositoryBranch>
-    <FsDocsReleaseNotesLink>$(RepositoryUrl)/blob/master/CHANGELOG.md</FsDocsReleaseNotesLink>
-    <FsDocsLicenseLink>$(RepositoryUrl)/blob/master/LICENSE</FsDocsLicenseLink>
+    <PackageTags>$(PackageTags);fable;fable-library;fable-dotnet;fable-javascript</PackageTags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />
+    <Content Remove="**\obj\**\*" />
     <Compile Include="ILogger.fs" />
     <Compile Include="logf.fsi" />
     <Compile Include="logf.fs" />
     <Compile Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' == 'True'" />
     <None Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' != 'True'" />
+    <None Include="paket.references" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

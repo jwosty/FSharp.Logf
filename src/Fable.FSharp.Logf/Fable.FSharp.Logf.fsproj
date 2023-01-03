@@ -2,11 +2,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
+    <PackageTags>$(PackageTags);fable;fable-library;fable-javascript</PackageTags>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />
+    <Content Remove="**\obj\**\*" />
     <None Include="paket.references" />
     <Compile Include="ConsoleLogger.fs" />
   </ItemGroup>

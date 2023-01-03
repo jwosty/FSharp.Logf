@@ -10,8 +10,8 @@ open Microsoft.Extensions.Logging
 
 
 /// <summary>
-///     Adapts a Suave <see cref="Suave.Logging.Logger" /> to the Microsoft
-///     <see cref="T:Microsoft.Extensions.Logging.ILogger" /> interface.
+///     Adapts a Microsoft <see cref="T:Microsoft.Extensions.Logging.ILogger" /> to the Suave
+///     <see cref="Suave.Logging.Logger" /> interface.
 /// </summary>
 type MsSuaveLoggerAdapter(ml: Microsoft.Extensions.Logging.ILogger) =
     let sToMLogLevel = function

@@ -5,6 +5,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
+    <PackageTags>$(PackageTags);suave</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

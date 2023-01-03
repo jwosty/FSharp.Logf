@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageTags>f#;fsharp;logging;log;structured;printf</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/jwosty/FSharp.Logf</RepositoryUrl>
+    <RepositoryBranch>master</RepositoryBranch>
+    <FsDocsReleaseNotesLink>$(RepositoryUrl)/blob/master/CHANGELOG.md</FsDocsReleaseNotesLink>
+    <FsDocsLicenseLink>$(RepositoryUrl)/blob/master/LICENSE</FsDocsLicenseLink>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>

@@ -1,4 +1,7 @@
 ﻿module Build
+open System
+open System.IO
+open System.Text.RegularExpressions
 open Fake.Core
 open Fake.IO
 open Fake.IO.FileSystemOperators
@@ -11,16 +14,83 @@ module Folder =
     let src = "src"
     let test = "test"
 
-module Projects =
-    open Folder
-    let sln = "FSharp.Logf.sln"
-    let logfLib = src </> "FSharp.Logf" </> "FSharp.Logf.fsproj"
-    let expectoAdapterLib = src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj"
-    let suaveAdapterLib = src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj"
-    let test = test </> "FSharp.Logf.Tests" </> "FSharp.Logf.Tests.fsproj"
+type NupkgMetadata = {
+    ``type``: string
+    licenseExpression: string
+    tags: string
+    projectUrl: string
+    repositoryUrl: string
+    repositoryType: string
+    repositoryCommit: string
+    description: string
+}
 
 let repoUrl = "https://github.com/jwosty/FSharp.Logf"
 let repoSshUrl = "git@github.com:jwosty/FSharp.Logf.git"
+
+let baseMetadata = lazy {
+    ``type`` = "project"
+    description = ""
+    licenseExpression = "MIT"
+    tags = "f# fsharp logging log structured printf"
+    repositoryType = "git"
+    repositoryUrl = repoUrl
+    repositoryCommit = Git.Information.getCurrentHash ()
+    projectUrl = repoUrl
+}
+
+type Project = { path: string; metadata: NupkgMetadata }
+
+let mkProject path description additionalTags =
+    { path = path; metadata = { baseMetadata.Value with description = description; tags = $"{baseMetadata.Value.tags} {additionalTags}" } }
+
+module Projects =
+    open Folder
+    let sln = "FSharp.Logf.sln"
+    let logfLib = mkProject (src </> "FSharp.Logf" </> "FSharp.Logf.fsproj") "Printf-style logging for structured loggers." "fable fable-library fable-javascript"
+    let fableLogfLib = mkProject (src </> "Fable.FSharp.Logf" </> "Fable.FSharp.Logf.fsproj") "ConsoleLogger support for Fable FSharp.Logf." "fable fable-library fable-dotnet fable-javascript"
+    let expectoAdapterLib = mkProject (src </> "FSharp.Logf.ExpectoAdapter" </> "FSharp.Logf.ExpectoAdapter.fsproj") "Expecto.Logging.ILogger -> Microsoft.Extensions.Logging.ILogger adapter" "expecto"
+    let suaveAdapterLib = mkProject (src </> "FSharp.Logf.SuaveAdapter" </> "FSharp.Logf.SuaveAdapter.fsproj") "Microsoft.Extensions.Logging.ILogger -> Suave.Logging.ILogger adapter" "suave"
+    let allLibs = [logfLib; fableLogfLib; expectoAdapterLib; suaveAdapterLib]
+    let test = test </> "FSharp.Logf.Tests" </> "FSharp.Logf.Tests.fsproj"
+
+type PackageVersionInfo = { versionName: string; versionChanges: string }
+
+let scrapeChangelog () =
+    let changelog = File.ReadAllText "CHANGELOG.md"
+    let regex = Regex("""## (?<Version>.*)\n+(?<Changes>(.|\n)*?)##""")
+    let result = seq {
+        for m in regex.Matches changelog ->
+            {   versionName = m.Groups.["Version"].Value.Trim()
+                versionChanges =
+                    m.Groups.["Changes"].Value.Trim()
+                        .Replace("    *", "    ◦")
+                        .Replace("*", "•")
+                        .Replace("    ", "\u00A0\u00A0\u00A0\u00A0") }
+    }
+    result
+
+let changelog = scrapeChangelog () |> Seq.toList
+
+let currentVersionInfo =
+    List.tryHead changelog
+    |> Option.defaultWith (fun () -> failwithf "Version info not found!")
+Trace.logfn "currentVersionInfo: %O" currentVersionInfo
+
+let addProperties props (defaults) =
+    { defaults with MSBuild.CliArguments.Properties = [yield! defaults.Properties; yield! props]}
+
+let addVersionInfo (versionInfo: PackageVersionInfo) options =
+    let versionPrefix, versionSuffix =
+        match String.splitStr "-" versionInfo.versionName with
+        | [hd] -> hd, None
+        | hd::tl -> hd, Some (String.Join ("-", tl))
+        | [] -> failwith "Version name is missing"
+    addProperties [
+        "VersionPrefix", versionPrefix
+        match versionSuffix with Some versionSuffix -> "VersionSuffix", versionSuffix | _ -> ()
+        "PackageReleaseNotes", versionInfo.versionChanges
+    ] options
 
 let buildCfg = DotNet.BuildConfiguration.fromEnvironVarOrDefault "CONFIGURATION" DotNet.BuildConfiguration.Release
 
@@ -55,7 +125,7 @@ let Restore _ =
 
 let BuildDotNet _ =
     Trace.log " -- Building dotnet projects --"
-    DotNet.build (fun bo -> { bo with Configuration = buildCfg; NoRestore = true }) Projects.sln
+    DotNet.build (fun bo -> { bo with MSBuildParams = addVersionInfo currentVersionInfo bo.MSBuildParams; Configuration = buildCfg; NoRestore = true }) Projects.sln
 
 let BuildFable _ =
     Trace.log " -- Building Fable projects --"
@@ -73,7 +143,26 @@ let TestFable _ =
 
 let Test _ = ()
 
-let Pack _ = ()
+let GeneratePackageTemplates _ =
+    Trace.log " -- Generating paket.template files --"
+    for proj in Projects.allLibs do
+        let templateFilePath = Path.GetDirectoryName proj.path </> "paket.template"
+        Trace.logfn "Generating template: %s" templateFilePath
+        let renderedTemplate =
+            let fields = FSharp.Reflection.FSharpType.GetRecordFields (proj.metadata.GetType())
+            [for field in fields -> field.Name, field.GetValue proj.metadata]
+            |> Seq.map (fun (k,v) -> $"{k} {v}")
+        File.WriteAllLines (templateFilePath, renderedTemplate)
+    ()
+
+let Pack _ =
+    Trace.log " -- Creating nuget packages --"
+    
+    DotNet.exec id "paket" $"pack ./artifacts --version {currentVersionInfo.versionName} --release-notes \"{currentVersionInfo.versionChanges}\"" |> ignore
+    // for proj in [Projects.logfLib] do
+        // Paket.pack (fun p -> { p with Version = currentVersionInfo.versionName; ReleaseNotes = currentVersionInfo.versionChanges })
+    // for proj in [Projects.logfLib; (*Projects.fableLogfLib;*) Projects.expectoAdapterLib; Projects.suaveAdapterLib] do
+    //     DotNet.pack (fun po -> { po with MSBuildParams = addVersionInfo currentVersionInfo po.MSBuildParams; Configuration = buildCfg; NoRestore = true; NoBuild = true }) proj
 
 let BuildDocs _ =
     // Can't use .NET 6.0.4xx due to: https://github.com/fsprojects/FSharp.Formatting/issues/616
@@ -118,6 +207,7 @@ let initTargets () =
     Target.create (nameof TestDotNet) TestDotNet
     Target.create (nameof TestFable) TestFable
     Target.create (nameof Test) Test
+    Target.create (nameof GeneratePackageTemplates) GeneratePackageTemplates
     Target.create (nameof Pack) Pack
     Target.create (nameof BuildDocs) BuildDocs
     Target.create (nameof WatchDocs) WatchDocs
@@ -128,6 +218,7 @@ let initTargets () =
     nameof Build <== [nameof BuildDotNet; nameof BuildFable]
     nameof Test <== [nameof TestDotNet; nameof TestFable]
     nameof Restore ==> nameof BuildDocs ==> nameof ReleaseDocs
+    nameof BuildDotNet ==> nameof GeneratePackageTemplates ==> nameof Pack
 
 [<EntryPoint>]
 let main argv =

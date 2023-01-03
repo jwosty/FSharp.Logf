@@ -6,6 +6,7 @@
     <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
     <Platforms>AnyCPU</Platforms>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
