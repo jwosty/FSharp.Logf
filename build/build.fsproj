@@ -9,7 +9,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="PostProcessNupkg.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="build.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
