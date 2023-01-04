@@ -27,3 +27,17 @@ group Build
     nuget Paket.Core
     nuget System.IO.Compression
     
+group Test
+    source https://api.nuget.org/v3/index.json
+    framework: net6.0
+    
+    nuget BlackFox.MasterOfFoo >= 1.0
+    nuget Expecto >= 8.1.0
+    nuget Fable.Core >= 3.0
+    nuget Fable.Mocha
+    nuget Microsoft.Extensions.Logging >= 6.0.0
+    nuget Microsoft.NET.Test.Sdk
+    nuget Suave >= 2.5.0
+    nuget YoloDev.Expecto.TestSdk
+    nuget FSharp.Core >= 6.0.0
+    

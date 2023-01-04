@@ -1,6 +1,7 @@
-FSharp.Core
-Expecto
-Fable.Mocha
-Microsoft.NET.Test.Sdk
-YoloDev.Expecto.TestSdk
-Fable.Core
+group Test
+    Expecto
+    Fable.Mocha
+    Microsoft.NET.Test.Sdk
+    YoloDev.Expecto.TestSdk
+    Fable.Core
+    FSharp.Core
