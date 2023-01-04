@@ -96,7 +96,7 @@ let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPatter
 
 let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
-    Format<'T, unit, string, unit>(fmtValue', format.Captures, format.CaptureTypes)
+    Format<'T, unit, string, unit>(fmtValue')
 
 let logf logger logLevel format =
     doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel))

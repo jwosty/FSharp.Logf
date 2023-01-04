@@ -28,10 +28,10 @@ let printTotalFileBytes (ml: ILogger) path =
 let main argv =
     // Create a Microsoft-provided logger. Choose your favorite Logger provider (for example: Serilog, NLog, log4net)
     let logger = LoggerFactory.Create(fun builder -> builder.AddConsole().SetMinimumLevel(LogLevel.Debug) |> ignore).CreateLogger()
-
+    
     // Log at debug level. Since the NewLine argument doesn't have a parameter name right after it, it will be baked
     // directly into the string. The argv argument, however, will be parameterized like the others.
-    logfd logger "ARGV:%s%A{argv}" Environment.NewLine argv
+    logfd logger "ARGV:%s%s{argv}" Environment.NewLine ("[|" + (argv |> String.concat ";") + "|]")
 
     argv
     |> Seq.map (printTotalFileBytes logger)

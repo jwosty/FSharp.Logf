@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.1
+## 1.0.2
 
-* Relax dependency versions (for example, FSharp.Core 7.0.0 -> FSharp.Core 4.2.3)
+* Relax dependency versions
 
 ## 1.0.0
 

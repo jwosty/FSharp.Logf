@@ -1,14 +1,14 @@
 source https://api.nuget.org/v3/index.json
 framework: auto-detect
 
-nuget BlackFox.MasterOfFoo >= 1.0
-nuget Expecto >= 8.1.0
-nuget Fable.Core >= 3.0
+nuget BlackFox.MasterOfFoo 1.0
+nuget Expecto 8.1.0
+nuget Fable.Core 3.0
 nuget Fable.Mocha
-nuget FSharp.Core >= 4.2.3
-nuget Microsoft.Extensions.Logging >= 6.0.0
+nuget FSharp.Core = 4.6.2
+nuget Microsoft.Extensions.Logging 6.0.0
 nuget Microsoft.NET.Test.Sdk
-nuget Suave >= 2.5.0
+nuget Suave 2.5.0
 nuget YoloDev.Expecto.TestSdk
 
 group Build

@@ -73,8 +73,8 @@ let processNupkgFromStream (_: string) (stream: Stream) =
                                 raise (Exception($"Package %s{pkgId} not found in dependency list. Please add it to paket.dependencies.", e))
                     p |> Option.map (fun p ->
                         match p.VersionRequirement.Range with
-                        | VersionRange.Minimum v -> string v
-                        | _ -> raise (NotImplementedException())))
+                        | VersionRange.Minimum v | VersionRange.Specific v -> string v
+                        | _ -> raise (NotImplementedException(p.ToString()))))
                 nuspecFile
     let entryStream = entry.Open()
     entryStream.Seek (0L, SeekOrigin.Begin) |> ignore
