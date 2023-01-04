@@ -7,3 +7,6 @@ Microsoft.Build
 Microsoft.Build.Framework
 Fake.JavaScript.Yarn
 Fake.Tools.Git
+System.IO.Compression
+FSharp.Data
+Paket.Core

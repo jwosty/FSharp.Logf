@@ -3,6 +3,7 @@ framework: auto-detect
 
 nuget BlackFox.MasterOfFoo >= 1.0
 nuget Expecto >= 8.1.0
+nuget Fable.Core >= 3.0
 nuget Fable.Mocha
 nuget FSharp.Core >= 4.2.3
 nuget Microsoft.Extensions.Logging >= 6.0.0
@@ -15,12 +16,14 @@ group Build
     framework: net6.0
     
     nuget Fake.DotNet.Paket ~> 5.23.1
-nuget Fake.JavaScript.Yarn
-nuget Fake.Tools.Git
+    nuget Fake.JavaScript.Yarn
+    nuget Fake.Tools.Git
     nuget FSharp.Core >= 6
     nuget Fake.Core.Target ~> 5.23.1
     nuget Fake.DotNet.Cli ~> 5.23.1
-nuget Microsoft.Build ~> 17.2.0
-nuget Microsoft.Build.Framework ~> 17.2.0
-    
+    nuget FSharp.Data
+    nuget Microsoft.Build ~> 17.2.0
+    nuget Microsoft.Build.Framework ~> 17.2.0
+    nuget Paket.Core
+    nuget System.IO.Compression
     

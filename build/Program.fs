@@ -1,4 +1,5 @@
 ﻿module Build
+
 open System
 open System.IO
 open System.Text.RegularExpressions
@@ -90,6 +91,7 @@ let Clean (args: TargetParameter) =
         DotNet.exec id "fable" "clean --yes" |> ignore
         
     deleteDir ".fsdocs"
+    deleteDir Folder.artifacts
 
 let Restore _ =
     Trace.log " -- Restoring --"
@@ -126,6 +128,16 @@ let Pack _ =
     // building twice), but for some reason Fable.FSharp.Logf.fsproj blows up when you try to build it after build with
     // NoBuild set. This is a minor issue.
     DotNet.pack (fun po -> { po with MSBuildParams = addVersionInfo currentVersionInfo po.MSBuildParams; Configuration = buildCfg; NoRestore = true; OutputPath = Some Folder.artifacts }) Projects.sln
+    // let anp = "artifacts-nopost"
+    // Shell.cp_r Folder.artifacts anp
+    for nupkg in !!(Folder.artifacts </> "*.nupkg") ++(Folder.artifacts </> "*.snupkg") do
+        PostProcessNupkg.processNupkgAtPath nupkg
+    
+    // for pkg in !!(Folder.artifacts </> "*.nupkg") ++(Folder.artifacts </> "*.snupkg") ++(anp </> "*.nupkg") ++(anp </> "*.snupkg") do
+    //     let dst = Path.GetDirectoryName pkg </> Path.GetFileNameWithoutExtension pkg + "." + Path.GetExtension pkg
+    //     Trace.logfn $"Expanding %s{pkg} to %s{dst}"
+    //     Directory.delete dst
+    //     System.IO.Compression.ZipFile.ExtractToDirectory(pkg, dst)
 
 let PublishNugetPackages _ =
     Trace.log " -- Publishing NuGet packages --"
@@ -134,6 +146,8 @@ let PublishNugetPackages _ =
     for pkg in !!(Folder.artifacts </> "*.nupkg") ++(Folder.artifacts </> "*.snupkg") do
         Trace.logfn $"Pushing %s{pkg} to %s{nugetPushSource}"
         DotNet.nugetPush (fun npo -> { npo with PushParams = { npo.PushParams with Source = Some nugetPushSource; ApiKey = nugetPushApiKey } }) pkg
+        
+    
     ()
 
 let BuildDocs _ =
