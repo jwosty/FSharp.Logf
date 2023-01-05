@@ -47,10 +47,12 @@ let main argv =
 This library is Fable-compatible. You can take advantage of this like so:
 
 ```fsharp
-#if FABLE_COMPILER
-open Fable.Microsoft.Extensions.Logging
-#else
+#if !FABLE_COMPILER
 open Microsoft.Extensions.Logging
+open FSharp.Logf
+#else
+open Fable.Microsoft.Extensions.Logging
+open Fable.FSharp.Logf
 #endif
 
 let ml =
@@ -60,5 +62,5 @@ let ml =
     ConsoleLogger()
 #endif
 
-logfi ml "Hello, world"
+logfi ml "Hello, %s{arg}!" "world"
 ```
