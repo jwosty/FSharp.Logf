@@ -1,12 +1,16 @@
-﻿module FSharp.Logf
+﻿#if DOTNET_LIB
+module FSharp.Logf
+#else
+module Fable.FSharp.Logf
+#endif
 open System
 open System.Text
 open System.Text.RegularExpressions
-#if FABLE_COMPILER
-open Fable.Microsoft.Extensions.Logging
-#else
+#if DOTNET_LIB
 open Microsoft.Extensions.Logging
 open BlackFox.MasterOfFoo
+#else
+open Fable.Microsoft.Extensions.Logging
 #endif
 
 // TODO: write tests
@@ -27,7 +31,7 @@ let printfFmtSpecPattern =
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
 
-#if !FABLE_COMPILER
+#if DOTNET_LIB
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()

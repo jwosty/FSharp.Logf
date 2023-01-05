@@ -6,18 +6,20 @@
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);fable;fable-library;fable-dotnet;fable-javascript</PackageTags>
     <Description>Printf-style logging for structured loggers.</Description>
+    <DefineConstants>DOTNET_LIB</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>DOTNET_LIB</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DefineConstants>TRACE;DOTNET_LIB</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'FABLE_COMPILER' ">
+    <DefineConstants>TRACE;DOTNET_LIB</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-<!--    <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />-->
-<!--    <Content Remove="**\obj\**\*" />-->
-    <Compile Include="ILogger.fs" />
-    <Compile Include="logf.fsi" />
-    <Compile Include="logf.fs" />
-    <Compile Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' == 'True'" />
-    <None Include="ConsoleLogger.fs" Condition=" '$(WORKAROUND_MISSING_DOCS)' != 'True'" />
+    <Compile Include="..\Fable.FSharp.Logf\logf.fsi" />
+    <Compile Include="..\Fable.FSharp.Logf\logf.fs" />
     <None Include="paket.references" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

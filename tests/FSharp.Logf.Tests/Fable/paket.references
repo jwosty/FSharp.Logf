@@ -1,0 +1,6 @@
+group Test
+    Expecto
+    Fable.Mocha
+    YoloDev.Expecto.TestSdk
+    Fable.Core
+    FSharp.Core

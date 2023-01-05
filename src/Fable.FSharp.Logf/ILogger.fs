@@ -22,4 +22,4 @@ type EventId(id: int, name: string) =
 type ILogger =
     abstract BeginScope<'TState> : state:'TState -> IDisposable
     abstract IsEnabled : logLevel:LogLevel -> bool
-    abstract Log<'TState> : logLevel:LogLevel * eventId:EventId * state:'TState * [<Optional; DefaultParameterValue(null:exn)>] ``exception``:exn * Func<'TState,exn,string> -> unit
+    abstract Log<'TState> : logLevel:LogLevel * eventId:EventId * state:'TState * ``exception``:exn * Func<'TState,exn,string> -> unit

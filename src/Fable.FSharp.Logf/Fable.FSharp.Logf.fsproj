@@ -6,16 +6,16 @@
     <Platforms>AnyCPU</Platforms>
     <PackageTags>$(PackageTags);fable;fable-library;fable-javascript</PackageTags>
     <Description>ConsoleLogger support for Fable FSharp.Logf.</Description>
+    <DefineConstants>$(DefineConstants);FABLE_LIB</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="*.fsproj; **\*.fs; **\*.fsi" PackagePath="fable\" />
     <Content Remove="**\obj\**\*" />
     <None Include="paket.references" />
+    <Compile Include="ILogger.fs" />
     <Compile Include="ConsoleLogger.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <!-- Project reference is preventing docs from build and I don't have a workaround... So, no docs for this project for now... https://github.com/fsprojects/FSharp.Formatting/issues/680 -->
-    <ProjectReference Include="..\FSharp.Logf\FSharp.Logf.fsproj" />
+    <Compile Include="logf.fsi" />
+    <Compile Include="logf.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

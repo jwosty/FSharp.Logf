@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <Configurations>Debug;Release;FABLE_COMPILER</Configurations>
+    <Platforms>AnyCPU</Platforms>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="..\Mocha.fs" />
+    <Compile Include="..\Mocha.Flip.fs" />
+    <Compile Include="..\Program.fs" />
+    <None Include="webpack.config.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- If we were referencing the packages, we wouldn't have to have a separate Fable.FSharp.Logf.Tests.fsproj, but we do since we're referencing from source (and Fable will try to compile FSharp.Logf.fsproj which obviously won't work) -->
+    <ProjectReference Include="..\..\..\src\Fable.FSharp.Logf\Fable.FSharp.Logf.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

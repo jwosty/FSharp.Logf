@@ -5,7 +5,7 @@ function resolve(relativePath) {
 }
 
 module.exports = {
-    entry: resolve('./Program.fs.js'),
+    entry: resolve('../Program.fs.js'),
     target: 'node',
     mode: 'production',
     output: {

@@ -18,14 +18,18 @@
 ///     <para>Output when using <a href="https://learn.microsoft.com/en-us/dotnet/core/extensions/console-log-formatter">console logging</a>: <c>"Hello, Jim! You walked 1.7 miles today."</c></para>
 ///     <para>Output when using <a href="https://github.com/serilog/serilog-sinks-file#json-event-formatting">Serilog JSON file logging</a>: <c>{"@t":"2022-01-01T03:44:57.8532799Z","@mt":"Hello, {user}! You walked {distance} miles today.","user":"Jim","distance":"1.7"}</c></para>
 /// </example>
+#if DOTNET_LIB
 module FSharp.Logf
+#else
+module Fable.FSharp.Logf
+#endif
 open System
 open System.Text
 open System.Text.RegularExpressions
-#if FABLE_COMPILER
-open Fable.Microsoft.Extensions.Logging
-#else
+#if DOTNET_LIB
 open Microsoft.Extensions.Logging
+#else
+open Fable.Microsoft.Extensions.Logging
 #endif
 
 /// <summary>

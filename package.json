@@ -5,11 +5,11 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "pretest": "cd tests/FSharp.Logf.Tests && dotnet fable ./ --run webpack",
+    "pretest": "cd tests/FSharp.Logf.Tests/Fable/ && dotnet fable ./ --run webpack",
     "pretestWatch": "yarn pretest",
-    "test": "mocha ./tests/FSharp.Logf.Tests/bin/mocha -t 10000",
-    "fableWatch": "cd tests/FSharp.Logf.Tests/ && dotnet fable watch ./ --run webpack --watch",
-    "mochaWatch": "cd tests/FSharp.Logf.Tests/ && instant-mocha ./bin/mocha --watch -t 10000",
+    "test": "mocha ./tests/FSharp.Logf.Tests/Fable/bin/mocha -t 10000",
+    "fableWatch": "cd tests/FSharp.Logf.Tests/Fable/ && dotnet fable watch ./ --run webpack --watch",
+    "mochaWatch": "cd tests/FSharp.Logf.Tests/Fable/ && instant-mocha ./bin/mocha --watch -t 10000",
     "testWatch": "concurrently \"yarn fableWatch\" \"yarn mochaWatch\""
   },
   "dependencies": {},

@@ -1,15 +1,16 @@
 ﻿module FSharp.Logf.Tests
 open System
 open System.Collections.Generic
-open FSharp.Logf
-#if FABLE_COMPILER
-open Fable.Mocha
-open Fable.Mocha.Flip
-open Fable.Microsoft.Extensions.Logging
-#else
+#if !FABLE_COMPILER
 open Expecto
 open Expecto.Flip
 open Microsoft.Extensions.Logging
+open FSharp.Logf
+#else
+open Fable.Mocha
+open Fable.Mocha.Flip
+open Fable.Microsoft.Extensions.Logging
+open Fable.FSharp.Logf
 #endif
 
 #if FABLE_COMPILER

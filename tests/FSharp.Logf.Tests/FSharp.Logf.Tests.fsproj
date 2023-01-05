@@ -13,7 +13,7 @@
     <Compile Include="Mocha.fs" />
     <Compile Include="Mocha.Flip.fs" />
     <Compile Include="Program.fs" />
-    <None Include="webpack.config.js" />
+    <Content Include="Fable\webpack.config.js" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FSharp.Logf\FSharp.Logf.fsproj" />
