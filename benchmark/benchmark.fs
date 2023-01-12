@@ -110,6 +110,16 @@ type Benchmarks() =
         for i in 0 .. this.size do
             logfc ml "param 0: %i{a}, param 1: %i{b}, param 2: %i{c}, param 3: %i{d}, param 4: %i{e}, param 5: %i{f}, param 6: %i{g}, param 7: %i{h}, param 8: %i{i}, param 9: %i{j}" (i-0) (i-1) (i-2) (i-3) (i-4) (i-5) (i-6) (i-7) (i-8) (i-9)
     
+    // do some %A for bonus points
+    member this.LogfTenParamsPercentA (ml: MLogger) =
+        // generated with:
+        // printfn "let o = new Object()\nlogfc ml \"%s\" %s"
+        //     ([for i in 0..9 -> sprintf "param %i: %%A{%c}" i (char 'a' + char i)] |> String.concat ", ")
+        //     ([for i in 0..9 -> "o"] |> String.concat " ")
+        for i in 0 .. this.size do
+            let o = new Object()
+            logfc ml "param 0: %A{a}, param 1: %A{b}, param 2: %A{c}, param 3: %A{d}, param 4: %A{e}, param 5: %A{f}, param 6: %A{g}, param 7: %A{h}, param 8: %A{i}, param 9: %A{j}" o o o o o o o o o o
+    
     [<Benchmark(Baseline = true)>]
     member this.NoParams () = this.LogMethodNoParams this.providerInst
     [<Benchmark>]
@@ -126,5 +136,7 @@ type Benchmarks() =
     member this.TenParams () = this.LogMethodTwoParams this.providerInst
     [<Benchmark>]
     member this.LogfTenParams () = this.LogfTwoParams this.providerInst
+    [<Benchmark>]
+    member this.LogfTenParamsPercentA () = this.LogfTwoParams this.providerInst
 
 BenchmarkRunner.Run<Benchmarks>() |> ignore
