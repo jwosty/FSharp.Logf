@@ -9,18 +9,7 @@ open Serilog.Sinks
 open BenchmarkDotNet.Attributes
 open BenchmarkDotNet.Running
 open BenchmarkDotNet.Jobs
-
-// [<SimpleJob (RuntimeMoniker.Net60)>]
-// type Benchmarks() =
-//     [<Params(100, 1000, 10000, 100000, 1000000)>]
-//     member val size = 0 with get, set
-//
-//     [<Benchmark(Baseline = true)>]
-//     member this.Array () = [| 0 .. this.size |] |> Array.map ((+) 1)
-//     [<Benchmark>]
-//     member this.List () = [ 0 .. this.size ] |> List.map ((+) 1)
-//     [<Benchmark>]
-//     member this.Seq () = seq { 0 .. this.size } |> Seq.map ((+) 1) |> Seq.length // force evaluation
+open BenchmarkDotNet.Diagnosers
 
 [<RequireQualifiedAccess>]
 type Provider = | NullLogger = 0 | SerilogFileLogger = 1 
@@ -30,10 +19,10 @@ type MLogger = Microsoft.Extensions.Logging.ILogger
 // FS0104: Enums may take values outside known cases
 #nowarn "0104"
 
-[<SimpleJob(RuntimeMoniker.Net60)>]
+[<SimpleJob(RuntimeMoniker.Net70)>]
+[<EventPipeProfiler(EventPipeProfile.CpuSampling)>]
 type Benchmarks() =
-    // Serilog.Sinks.InMemory.InMemorySink()
-    [<Params(1_000, 10_000, 100_000)>]
+    [<Params( 10_000)>]
     member val size = 0 with get, set
     
     [<Params(Provider.NullLogger, Provider.SerilogFileLogger)>]
@@ -139,4 +128,8 @@ type Benchmarks() =
     [<Benchmark>]
     member this.LogfTenParamsPercentA () = this.LogfTwoParams this.providerInst
 
-BenchmarkRunner.Run<Benchmarks>() |> ignore
+module Main =
+    [<EntryPoint>]
+    let main args =
+        BenchmarkRunner.Run<Benchmarks>(args = args) |> ignore
+        0
