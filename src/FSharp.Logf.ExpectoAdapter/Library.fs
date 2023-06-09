@@ -7,7 +7,7 @@ open Expecto.Logging
 ///     Adapts an Expecto <see cref="Expecto.Logging.Logger" /> to the Microsoft
 ///     <see cref="T:Microsoft.Extensions.Logging.ILogger" /> interface.
 /// </summary>
-type ExpectoMsLoggerAdapter(el: Expecto.Logging.Logger) =
+type ExpectoMsLoggerAdapter<'TCategoryName>(el: Expecto.Logging.Logger) =
     let theName = el.name
     
     let mToELogLevel = function
@@ -19,7 +19,7 @@ type ExpectoMsLoggerAdapter(el: Expecto.Logging.Logger) =
         | Microsoft.Extensions.Logging.LogLevel.Error -> ValueSome Expecto.Logging.LogLevel.Error
         | Microsoft.Extensions.Logging.LogLevel.Critical | _ -> ValueSome Expecto.Logging.LogLevel.Fatal
     
-    interface Microsoft.Extensions.Logging.ILogger with
+    interface Microsoft.Extensions.Logging.ILogger<'TCategoryName> with
         override this.BeginScope<'TState>(state: 'TState) = { new IDisposable with override this.Dispose () = () }
         override this.IsEnabled(logLevel: Microsoft.Extensions.Logging.LogLevel) = true
         override this.Log<'TState>(logLevel: Microsoft.Extensions.Logging.LogLevel, eventId: Microsoft.Extensions.Logging.EventId, state: 'TState, exn: exn, formatter: Func<'TState, exn, string>) =
@@ -81,3 +81,9 @@ module Extensions =
         ///     <see cref="T:Microsoft.Extensions.Logging.ILogger" />.
         /// </summary>
         member el.AsMsLogger () = ExpectoMsLoggerAdapter(el) :> Microsoft.Extensions.Logging.ILogger
+
+        /// <summary>
+        ///     Turns an Expecto <see cref="Expecto.Logging.Logger" /> into a Microsoft
+        ///     <see cref="T:Microsoft.Extensions.Logging.ILogger`1" />.
+        /// </summary>
+        member el.AsMsLogger<'TCategoryName> () = ExpectoMsLoggerAdapter<'TCategoryName>(el) :> Microsoft.Extensions.Logging.ILogger<'TCategoryName>
