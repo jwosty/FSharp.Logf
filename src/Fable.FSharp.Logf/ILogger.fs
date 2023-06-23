@@ -23,3 +23,8 @@ type ILogger =
     abstract BeginScope<'TState> : state:'TState -> IDisposable
     abstract IsEnabled : logLevel:LogLevel -> bool
     abstract Log<'TState> : logLevel:LogLevel * eventId:EventId * state:'TState * ``exception``:exn * Func<'TState,exn,string> -> unit
+
+/// <summary>
+///     Fable proxy of <see cref="T:Microsoft.Extensions.Logging.ILogger`1" />.
+/// </summary>
+type ILogger<'T> = inherit ILogger
