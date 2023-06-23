@@ -31,12 +31,14 @@ let printfFmtSpecPattern =
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
 
+let logFormatSpecifier = "{@*[a-zA-Z0-9_]+}"
+
 #if DOTNET_LIB
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    let logFormatSpecifierRegex = Regex("""\A{[a-zA-Z0-9_]+}""")
+    static let logFormatSpecifierRegex = Regex("""\A""" + logFormatSpecifier)
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
     // but the F# compiler doesn't give us a way to disambiguate this. So, to work around, we make it generic and
@@ -96,7 +98,7 @@ type private LogfEnv(logger, logLevel, ?exn) =
 //      * 1st match: "a" = "", "b" = "{", "${a}${b}${b}" = "{{"
 //      * 2nd match: "a" = "", "b" = "}", "${a}${b}${b}" = "}}"
 //      * Output: foo{{bar}}
-let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + """\{[a-zA-Z0-9_]+\})|(?<b>[\{\}])""")
+let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + logFormatSpecifier + """)|(?<b>[\{\}])""")
 
 let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
