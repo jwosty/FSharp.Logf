@@ -28,7 +28,7 @@ module LogLine =
     
     let empty = { logLevel = LogLevel.Information; eventId = EventId(0); message = ""; args = List.empty; error = None }
 
-type AssertableLogger(?level) =
+type AssertableLogger<'a>(?level) =
     let level = defaultArg level LogLevel.Debug
     
     member val Lines = List<LogLine>()
@@ -52,6 +52,8 @@ type AssertableLogger(?level) =
                     formatter.Invoke(state, error), []
             this.Lines.Add { logLevel = logLevel; eventId = eventId; message = msg; args = args; error = Option.ofObj error }
 
+    interface ILogger<'a>
+
 let mkLogger () = AssertableLogger()
 
 type Point = { x: float; y: float }
@@ -63,6 +65,13 @@ type DummyException() =
 let makeDummyException () =
     try raise (DummyException())
     with e -> e
+
+let assertEquivalent (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
+    let logMethodLogger = AssertableLogger<'a>()
+    let logfLogger = AssertableLogger<'a>()
+    logMethodCall logMethodLogger
+    logfCall logfLogger
+    logfLogger.Lines |> Expect.sequenceEqual "logf call should be equivalent to Log call" logMethodLogger.Lines 
 
 [<Tests>]
 let allTests =
@@ -139,6 +148,44 @@ let allTests =
                     { LogLine.empty with message = "az" }
 #endif
                 ]
+            )
+        ]
+        testList "Oracle tests" [
+            testCase "No parameters" (fun () ->
+                (fun l -> logfi l "Hello, world!")
+                |> assertEquivalent
+                    (fun l -> l.LogInformation "Hello, world!")
+            )
+            testCase "One named parameter" (fun () ->
+                (fun l -> logfi l "Hello, %s{Person}" "Sam")
+                |> assertEquivalent
+                    (fun l -> l.LogInformation ("Hello, {Person}", "Sam"))
+            )
+            testCase "Many named parameters" (fun () ->
+                (fun l -> logfi l "A is %s{A}, B is %d{B}, C is %b{C}" "foo" 42 false)
+                |> assertEquivalent
+                    (fun l -> l.LogInformation ("A is {A}, B is {B}, C is {C}", "foo", 42, false))
+            )
+            testCase "One unnamed parameter" (fun () ->
+                (fun l -> logfi l "Hello, %s" "Sam")
+                |> assertEquivalent
+                    (fun l -> l.LogInformation "Hello, Sam")
+            )
+            testCase "Many unnamed parameters" (fun () ->
+                (fun l -> logfi l "A is %s, B is %d, C is %b" "foo" 42 false)
+                |> assertEquivalent
+                    (fun l -> l.LogInformation ("A is foo, B is 42, C is false", "foo", 42, false))
+            )
+            testCase "Many named and unnamed parameters" (fun () ->
+                (fun l -> logfi l "A is %s{A}, B is %d, C is %b{C}, D is %s" "foo" 42 false "bar")
+                |> assertEquivalent
+                    (fun l -> l.LogInformation ("A is {A}, B is 42, C is {C}, D is bar", "foo", false))
+            )
+            testCase "Named parameter with destructure operator" (fun () ->
+                let x = {| Latitude = 25; Longitude = 134 |}
+                (fun l -> logfi l "Processing %A{@sensorInput}" x)
+                |> assertEquivalent
+                    (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
             )
         ]
         testList "SharedTests" [
