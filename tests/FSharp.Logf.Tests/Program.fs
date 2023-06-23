@@ -150,6 +150,8 @@ let allTests =
                 ]
             )
         ]
+// Didn't feel like making direct .Log calls work under Fable because they require dealing with MessageFormatter func
+#if !FABLE_COMPILER
         testList "Oracle tests" [
             testCase "No parameters" (fun () ->
                 (fun l -> logfi l "Hello, world!")
@@ -188,6 +190,7 @@ let allTests =
                     (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
             )
         ]
+#endif
         testList "SharedTests" [
             let inline sharedTestCase name code =
                 let err = makeDummyException ()
