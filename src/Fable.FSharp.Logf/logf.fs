@@ -102,14 +102,11 @@ let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
     Format<'T, unit, string, unit>(fmtValue')
 
-let logf (logger: ILogger) logLevel format =
-    if logger.IsEnabled logLevel then
-        doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel))
-    else Unchecked.defaultof<_>
-let elogf (logger: ILogger) logLevel exn format =
-    if logger.IsEnabled logLevel then
-        doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel, exn))
-    else Unchecked.defaultof<_>
+let logf logger logLevel format =
+    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel))
+let elogf logger logLevel exn format =
+    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel, exn))
+
 #else
 
 // matches a printf-style format specifier (like %s or %+6.4d) followed immediately by a log message param specifier
