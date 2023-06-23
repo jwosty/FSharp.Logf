@@ -38,7 +38,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    let logFormatSpecifierRegex = Regex("""\A""" + logFormatSpecifier)
+    static let logFormatSpecifierRegex = Regex("""\A""" + logFormatSpecifier)
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
     // but the F# compiler doesn't give us a way to disambiguate this. So, to work around, we make it generic and
