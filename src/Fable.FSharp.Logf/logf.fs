@@ -6,6 +6,7 @@ module Fable.FSharp.Logf
 open System
 open System.Text
 open System.Text.RegularExpressions
+open System.Collections.Generic
 #if DOTNET_LIB
 open Microsoft.Extensions.Logging
 open BlackFox.MasterOfFoo
@@ -31,7 +32,18 @@ let printfFmtSpecPattern =
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
 
-let logFormatSpecifier = "{@*[a-zA-Z0-9_]+(,[^\}]+)?(:[^\}]+)?}"
+let logFormatSpecifier =
+    """(?<start>"""
+        + """{@?"""
+        + """[a-zA-Z0-9_]+"""
+    + """)"""
+    + """(?<fmt>"""
+        + """(,[^:\}]+)?"""
+        + """(:[^\}]+)?"""
+    + """)"""
+    + """(?<end>"""
+        + """}"""
+    + """)"""
 
 #if DOTNET_LIB
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
@@ -55,8 +67,15 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | None ->
             logger.Log(logLevel, msgBuf.ToString (), args.ToArray ())
         Unchecked.defaultof<'Unit>
+    
+    member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
+        match printfSpec.TypeChar with
+        | 'x' | 'X' -> Some ":X"
+        | _ -> None
+    
     override this.Write (s: PrintableElement) =
         if s.ElementType = PrintableElementType.FromFormatSpecifier then
+
             match lastArg with
             | Some lastArg ->
                 // now we know the prev arg should be baked into the message template
@@ -64,16 +83,30 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             | None -> ()
             lastArg <- Some s
         else
-            match lastArg with
-            | Some lastArg ->
-                if logFormatSpecifierRegex.IsMatch (s.Value :?> string) then
-                    // now we know the prev arg should be a message param
-                    args.Add lastArg.Value
-                else
-                    // now we know the prev arg should be baked into the message template
-                    msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
-            | None -> ()
-            msgBuf.Append (s.Value :?> string) |> ignore
+            let sValue =
+            
+                match lastArg with
+                | Some lastArg ->
+                    let m = logFormatSpecifierRegex.Match (s.Value :?> string)
+                    
+                    if m.Success then
+                        let netFormatSpec =
+                            lastArg.Specifier
+                            |> Option.bind this.TryTranslatePrintfSpecToNetFormatSpec
+                        
+                        // now we know the prev arg should be a message param
+                        args.Add lastArg.Value
+                        
+                        match netFormatSpec with
+                        | Some fmt ->
+                            m.Groups["start"].Value + fmt + m.Groups["end"].Value
+                        | None -> s.Value :?> string
+                    else
+                        // now we know the prev arg should be baked into the message template
+                        msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
+                        s.Value :?> string
+                | None -> s.Value :?> string
+            msgBuf.Append sValue |> ignore
             lastArg <- None
     
     override this.WriteT(s : string) =

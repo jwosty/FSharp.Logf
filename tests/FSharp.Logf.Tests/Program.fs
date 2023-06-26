@@ -66,12 +66,16 @@ let makeDummyException () =
     try raise (DummyException())
     with e -> e
 
-let assertEquivalent (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
+let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
     let logMethodLogger = AssertableLogger<'a>()
     let logfLogger = AssertableLogger<'a>()
     logMethodCall logMethodLogger
     logfCall logfLogger
-    logfLogger.Lines |> Expect.sequenceEqual "logf call should be equivalent to Log call" logMethodLogger.Lines 
+    let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+    logfLogger.Lines |> Expect.sequenceEqual ("logf call should be equivalent to Log call" + pt2) logMethodLogger.Lines
+    
+let assertEquivalent (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
+    assertEquivalentM "" logMethodCall logfCall
 
 [<Tests>]
 let allTests =
@@ -224,6 +228,15 @@ let allTests =
                     (fun l -> logfi l "%i{value},3}" 0xdeadbeef)
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("{value},3}}", 0xdeadbeef))
+                )
+            ]
+            testList "printf format specifiers" [
+                testCase "Hex format" (fun () ->
+                    let method = (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", 0xdeadbeef))
+                    (fun l -> logfi l "%x{value}" 0xdeadbeef)
+                    |> assertEquivalentM "little x" method
+                    (fun l -> logfi l "%X{value}" 0xdeadbeef)
+                    |> assertEquivalentM "big X" method
                 )
             ]
         ]
