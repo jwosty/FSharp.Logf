@@ -1,4 +1,4 @@
-﻿#if DOTNET_LIB
+#if DOTNET_LIB
 module FSharp.Logf
 #else
 module Fable.FSharp.Logf
@@ -32,7 +32,7 @@ let printfFmtSpecPattern =
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
 
-let logFormatSpecifier =
+let netMsgHolePattern =
     """(?<start>"""
         + """{@?"""
         + """[a-zA-Z0-9_]+"""
@@ -50,7 +50,8 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    static let logFormatSpecifierRegex = Regex("""\A""" + logFormatSpecifier)
+    static let logFormatSpecifierRegex = Regex("""\A""" + netMsgHolePattern)
+    
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
     // but the F# compiler doesn't give us a way to disambiguate this. So, to work around, we make it generic and
@@ -71,6 +72,27 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
         match printfSpec.TypeChar with
         | 'x' | 'X' -> Some ":X"
+        | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
+            let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
+            
+            let width, precision =
+                if not printfSpec.IsWidthSpecified && printfSpec.Precision = 0 then
+                    // special case for %0.0f
+                    Some 1, Some 0
+                else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else None)
+            
+            sb.Append ':' |> ignore
+            width |> Option.iter (fun w ->
+                for _ in 0 .. w - 1 do
+                    sb.Append '0' |> ignore)
+            
+            sb.Append '.' |> ignore
+            
+            precision |> Option.iter (fun p ->
+                for _ in 0 .. p - 1 do
+                    sb.Append '0' |> ignore)
+            
+            Some (sb.ToString())
         | _ -> None
     
     override this.Write (s: PrintableElement) =
@@ -131,7 +153,7 @@ type private LogfEnv(logger, logLevel, ?exn) =
 //      * 1st match: "a" = "", "b" = "{", "${a}${b}${b}" = "{{"
 //      * 2nd match: "a" = "", "b" = "}", "${a}${b}${b}" = "}}"
 //      * Output: foo{{bar}}
-let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + logFormatSpecifier + """)|(?<b>[\{\}])""")
+let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + netMsgHolePattern + """)|(?<b>[\{\}])""")
 
 let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")

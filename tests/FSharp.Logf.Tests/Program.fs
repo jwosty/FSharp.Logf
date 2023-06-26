@@ -238,6 +238,46 @@ let allTests =
                     (fun l -> logfi l "%X{value}" 0xdeadbeef)
                     |> assertEquivalentM "big X" method
                 )
+                testCase "Float with zero left and zero right decimal places" (fun () ->
+                    (fun l -> logfi l "%0.0f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
+                )
+                testCase "Float with one right decimal place" (fun () ->
+                    (fun l -> logfi l "%.1f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0}", 5. / 3.))
+                )
+                testCase "Float with two right decimal places" (fun () ->
+                    (fun l -> logfi l "%.2f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.00}", 5. / 3.))
+                )
+                testCase "Float with ten right decimal places" (fun () ->
+                    (fun l -> logfi l "%.10f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0000000000}", 5. / 3.))
+                )
+                testCase "Float with one left decimal place" (fun () ->
+                    (fun l -> logfi l "%1f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
+                )
+                testCase "Float with two left decimal places" (fun () ->
+                    (fun l -> logfi l "%2f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.}", 5. / 3.))
+                )
+                testCase "Float with ten left decimal places" (fun () ->
+                    (fun l -> logfi l "%10f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0000000000.}", 5. / 3.))
+                )
+                testCase "Float with two left and three right decimal places" (fun () ->
+                    (fun l -> logfi l "%2.3f{value}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.000}", 5. / 3.))
+                )
             ]
         ]
 #endif
@@ -359,7 +399,7 @@ let allTests =
                     let l = mkLogger ()
                     
                     logfOrElogf l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
-                    l.LastLine |> Expect.equal "Log lines" 
+                    l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "{xyz} {abc} {d} {w}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
