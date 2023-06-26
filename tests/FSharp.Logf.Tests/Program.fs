@@ -189,6 +189,43 @@ let allTests =
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
             )
+            testList ".NET-style format specifiers" [
+                testCase "Float case 1" (fun () ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.#}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", (5. / 3.)))
+                )
+                testCase "Float case 2" (fun () ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.##}" (5. / 3.))
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("Duration: {durationMs:0.##}", (5. / 3.)))
+                )
+                testCase "Alignment" (fun () ->
+                    (fun l -> logfi l "%f{balance,-10}" 12345.98m)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{balance,-10}", 12345.98m))
+                )
+                testCase "Alignment with currency format" (fun () ->
+                    (fun l -> logfi l "%f{balance,-10:C}" 12345.98m)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{balance,-10:C}", 12345.98m))
+                )
+                testCase "Hex format" (fun () ->
+                    (fun l -> logfi l "%i{value:X}" 0xdeadbeef)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{value:X}", 0xdeadbeef))
+                )
+                testCase "Corner case 1" (fun () ->
+                    (fun l -> logfi l "%i{value}:x}" 0xdeadbeef)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{value}:x}}", 0xdeadbeef))
+                )
+                testCase "Corner case 2" (fun () ->
+                    (fun l -> logfi l "%i{value},3}" 0xdeadbeef)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{value},3}}", 0xdeadbeef))
+                )
+            ]
         ]
 #endif
         testList "SharedTests" [

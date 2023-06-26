@@ -31,7 +31,7 @@ let printfFmtSpecPattern =
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
 
-let logFormatSpecifier = "{@*[a-zA-Z0-9_]+}"
+let logFormatSpecifier = "{@*[a-zA-Z0-9_]+(,[^\}]+)?(:[^\}]+)?}"
 
 #if DOTNET_LIB
 type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
