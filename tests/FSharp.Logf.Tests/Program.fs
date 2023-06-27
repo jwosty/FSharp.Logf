@@ -1,6 +1,8 @@
-﻿module FSharp.Logf.Tests
+module FSharp.Logf.Tests
 open System
 open System.Collections.Generic
+
+
 #if !FABLE_COMPILER
 open Expecto
 open Expecto.Flip
@@ -66,16 +68,55 @@ let makeDummyException () =
     try raise (DummyException())
     with e -> e
 
-let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
-    let logMethodLogger = AssertableLogger<'a>()
-    let logfLogger = AssertableLogger<'a>()
-    logMethodCall logMethodLogger
-    logfCall logfLogger
-    let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
-    logfLogger.Lines |> Expect.sequenceEqual ("logf call should be equivalent to Log call" + pt2) logMethodLogger.Lines
+[<AutoOpen>]
+module Helpers =
+#if !FABLE_COMPILER
+    open Serilog
+    open Serilog.Sinks
+    open Serilog.Extensions.Logging
+    open System.IO
     
-let assertEquivalent (logMethodCall: ILogger<'a> -> unit) (logfCall: ILogger<'a> -> unit) =
-    assertEquivalentM "" logMethodCall logfCall
+    let serilog2Mel (sl: Serilog.ILogger) : Microsoft.Extensions.Logging.ILogger<'a> =
+        use lf = (new SerilogLoggerFactory(sl))
+        lf.CreateLogger<'a>()
+#endif
+    
+    let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
+        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+        
+        let mutable exns = []
+        let collectExn (f: unit -> unit) =
+            try f ()
+            with e -> exns <- e :: exns
+        
+    #if !FABLE_COMPILER
+        do
+            use logMethodTw = new StringWriter()
+            use logfTw = new StringWriter()
+            let outputTemplate = "{Message:lj}"
+            let logMethodLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logMethodTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
+            let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
+            logMethodCall logMethodLogger
+            logfCall logfLogger
+            let logfRender = logfTw.ToString()
+            let logMethodRender = logMethodTw.ToString()
+            
+            collectExn (fun () -> logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMsg)
+            collectExn (fun () -> logMethodRender |> Expect.equal ("Rendered log method call should match expected value" + pt2) expectedRenderedMsg)
+    #endif
+        
+        do
+            let logMethodLogger = AssertableLogger<'a>()
+            let logfLogger = AssertableLogger<'a>()
+            logMethodCall logMethodLogger
+            logfCall logfLogger
+            collectExn (fun () -> logfLogger.Lines |> Expect.sequenceEqual ("logf call should be equivalent to Log call" + pt2) logMethodLogger.Lines)
+        
+        if not (List.isEmpty exns) then
+            raise (AggregateException(exns))
+        
+    let assertEquivalent (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
+        assertEquivalentM "" logMethodCall expectedRenderedMsg logfCall
 
 [<Tests>]
 let allTests =
@@ -161,122 +202,147 @@ let allTests =
                 (fun l -> logfi l "Hello, world!")
                 |> assertEquivalent
                     (fun l -> l.LogInformation "Hello, world!")
+                    "Hello, world!"
             )
             testCase "One named parameter" (fun () ->
                 (fun l -> logfi l "Hello, %s{Person}" "Sam")
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("Hello, {Person}", "Sam"))
+                    "Hello, Sam"
             )
             testCase "Many named parameters" (fun () ->
                 (fun l -> logfi l "A is %s{A}, B is %d{B}, C is %b{C}" "foo" 42 false)
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("A is {A}, B is {B}, C is {C}", "foo", 42, false))
+                    ""
             )
             testCase "One unnamed parameter" (fun () ->
                 (fun l -> logfi l "Hello, %s" "Sam")
                 |> assertEquivalent
                     (fun l -> l.LogInformation "Hello, Sam")
+                    "Hello, Sam"
             )
             testCase "Many unnamed parameters" (fun () ->
                 (fun l -> logfi l "A is %s, B is %d, C is %b" "foo" 42 false)
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("A is foo, B is 42, C is false", "foo", 42, false))
+                    "A is foo, B is 42, C is false"
             )
             testCase "Many named and unnamed parameters" (fun () ->
                 (fun l -> logfi l "A is %s{A}, B is %d, C is %b{C}, D is %s" "foo" 42 false "bar")
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("A is {A}, B is 42, C is {C}, D is bar", "foo", false))
+                    "A is foo, B is false, C is false, D is bar"
             )
             testCase "Named parameter with destructure operator" (fun () ->
                 let x = {| Latitude = 25; Longitude = 134 |}
                 (fun l -> logfi l "Processing %A{@sensorInput}" x)
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
+                    """Processing {"Latitude":25,"Longitude":134}"""
             )
             testList ".NET-style format specifiers" [
                 testCase "Float case 1" (fun () ->
                     (fun l -> logfi l "Duration: %f{durationMs:0.#}" (5. / 3.))
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", (5. / 3.)))
+                        "Duration: 1.7"
                 )
                 testCase "Float case 2" (fun () ->
                     (fun l -> logfi l "Duration: %f{durationMs:0.##}" (5. / 3.))
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("Duration: {durationMs:0.##}", (5. / 3.)))
+                        "Duration: 1.67"
                 )
                 testCase "Alignment" (fun () ->
                     (fun l -> logfi l "%f{balance,-10}" 12345.98m)
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("{balance,-10}", 12345.98m))
+                        "12345.98  "
                 )
                 testCase "Alignment with currency format" (fun () ->
                     (fun l -> logfi l "%f{balance,-10:C}" 12345.98m)
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("{balance,-10:C}", 12345.98m))
+                        "¤12,345.98"
                 )
                 testCase "Hex format" (fun () ->
                     (fun l -> logfi l "%i{value:X}" 0xdeadbeef)
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("{value:X}", 0xdeadbeef))
+                        "DEADBEEF"
                 )
                 testCase "Corner case 1" (fun () ->
-                    (fun l -> logfi l "%i{value}:x}" 0xdeadbeef)
+                    (fun l -> logfi l "%i{value}:X}" 0xdeadbeef)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value}:x}}", 0xdeadbeef))
+                        (fun l -> l.LogInformation ("{value}:X}}", 0xdeadbeef))
+                        (string 0xdeadbeef + ":X}")
                 )
                 testCase "Corner case 2" (fun () ->
                     (fun l -> logfi l "%i{value},3}" 0xdeadbeef)
                     |> assertEquivalent
                         (fun l -> l.LogInformation ("{value},3}}", 0xdeadbeef))
+                        (string 0xdeadbeef + ",3}")
                 )
             ]
             testList "printf format specifiers" [
                 testCase "Hex format" (fun () ->
-                    let method = (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", 0xdeadbeef))
                     (fun l -> logfi l "%x{value}" 0xdeadbeef)
-                    |> assertEquivalentM "little x" method
+                    |> assertEquivalentM "little x"
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:x}", 0xdeadbeef))
+                        "deadbeef"
                     (fun l -> logfi l "%X{value}" 0xdeadbeef)
-                    |> assertEquivalentM "big X" method
+                    |> assertEquivalentM "big X"
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", 0xdeadbeef))
+                        "DEADBEEF"
                 )
                 testCase "Float with zero left and zero right decimal places" (fun () ->
                     (fun l -> logfi l "%0.0f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
+                        "2"
                 )
                 testCase "Float with one right decimal place" (fun () ->
                     (fun l -> logfi l "%.1f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0}", 5. / 3.))
+                        "1.7"
                 )
                 testCase "Float with two right decimal places" (fun () ->
                     (fun l -> logfi l "%.2f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:.00}", 5. / 3.))
+                        "1.67"
                 )
                 testCase "Float with ten right decimal places" (fun () ->
                     (fun l -> logfi l "%.10f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0000000000}", 5. / 3.))
+                        "1.6666666667"
                 )
                 testCase "Float with one left decimal place" (fun () ->
                     (fun l -> logfi l "%1f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
+                        "2"
                 )
                 testCase "Float with two left decimal places" (fun () ->
                     (fun l -> logfi l "%2f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.}", 5. / 3.))
+                        "02"
                 )
                 testCase "Float with ten left decimal places" (fun () ->
                     (fun l -> logfi l "%10f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:0000000000.}", 5. / 3.))
+                        "0000000002"
                 )
                 testCase "Float with two left and three right decimal places" (fun () ->
                     (fun l -> logfi l "%2.3f{value}" (5. / 3.))
                     |> assertEquivalent
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.000}", 5. / 3.))
+                        "01.667"
                 )
             ]
         ]

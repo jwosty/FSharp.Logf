@@ -71,7 +71,8 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
         match printfSpec.TypeChar with
-        | 'x' | 'X' -> Some ":X"
+        | 'x' -> Some ":x"
+        | 'X' -> Some ":X"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
             let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
             
