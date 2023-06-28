@@ -81,6 +81,23 @@ module Helpers =
         lf.CreateLogger<'a>()
 #endif
     
+    /// Fully renders a logf call, and asserts that the resulting messages are the same as the given output message
+    /// (using a Serilog TextWriter sink to compare)
+    let assertEquivalentOutputM msg expectedRenderedMessage logfCall =
+        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+        
+        use logfTw = new StringWriter()
+        let outputTemplate = "{Message:lj}"
+        let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
+        logfCall logfLogger
+        let logfRender = logfTw.ToString()
+        
+        logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMessage
+        
+    let assertEquivalentOutput expectedRenderedMessage logfCall = assertEquivalentOutputM "" expectedRenderedMessage logfCall
+    
+    /// Checks that the logf calls .Log() with a particular set of parameters, and also check that the rendered message
+    /// matches a given expected output
     let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
         let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
         
@@ -214,7 +231,7 @@ let allTests =
                 (fun l -> logfi l "A is %s{A}, B is %d{B}, C is %b{C}" "foo" 42 false)
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("A is {A}, B is {B}, C is {C}", "foo", 42, false))
-                    ""
+                    "A is foo, B is 42, C is false"
             )
             testCase "One unnamed parameter" (fun () ->
                 (fun l -> logfi l "Hello, %s" "Sam")
@@ -232,7 +249,7 @@ let allTests =
                 (fun l -> logfi l "A is %s{A}, B is %d, C is %b{C}, D is %s" "foo" 42 false "bar")
                 |> assertEquivalent
                     (fun l -> l.LogInformation ("A is {A}, B is 42, C is {C}, D is bar", "foo", false))
-                    "A is foo, B is false, C is false, D is bar"
+                    "A is foo, B is 42, C is false, D is bar"
             )
             testCase "Named parameter with destructure operator" (fun () ->
                 let x = {| Latitude = 25; Longitude = 134 |}
@@ -344,6 +361,20 @@ let allTests =
                         (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.000}", 5. / 3.))
                         "01.667"
                 )
+                testList "Float with + flag" [
+                    for value, expected in [ -42., "-42.000"; 0., "+00.000"; 42., "+42.000" ] ->
+                        testCase (string value) (fun () ->
+                            // sprintf "%+2.3f" 0.
+                            (fun l -> logfi l "%+2.3f{value}" value)
+                            |> assertEquivalentOutput expected
+                        )
+                ]
+                testCase "Several interspersed format specifiers" (fun () ->
+                    (fun l -> logfi l "%4.1f{float}, %b{boolean}, %x{hex}" 42.59 false 0xcafebabe)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{float:0000.0}, {boolean}, {hex:x}", 42.59, false, 0xcafebabe))
+                        "0042.6, false, cafebabe"
+                ) 
             ]
         ]
 #endif
@@ -454,9 +485,9 @@ let allTests =
                     let l = mkLogger ()
                     
                     logfOrElogf l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
-                    l.LastLine |> Expect.equal "Log lines" 
+                    l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
-                        { emptyLogLine with message = "Params: {a},{b},{c}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
+                        { emptyLogLine with message = "Params: {a:.00},{b:.000},{c:.0000000000}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
 #else
                         { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
 #endif
@@ -465,10 +496,11 @@ let allTests =
                     let l = mkLogger ()
                     
                     logfOrElogf l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
-                    l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
-                        { emptyLogLine with message = "{xyz} {abc} {d} {w}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                    l.LastLine |> Expect.equal "Log lines"
+                        { emptyLogLine with message = "{xyz:00.000} {abc:0000000000.} {d:+.00000;-.00000} {w:00000.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
+                    l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
 #endif
                 )

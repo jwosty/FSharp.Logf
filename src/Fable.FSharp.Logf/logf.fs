@@ -70,6 +70,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         Unchecked.defaultof<'Unit>
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
+        System.Diagnostics.Debugger.Break ()
         match printfSpec.TypeChar with
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
@@ -82,23 +83,34 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                     Some 1, Some 0
                 else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else None)
             
+            let buildSection () =
+                width |> Option.iter (fun w ->
+                    for _ in 0 .. w - 1 do
+                        sb.Append '0' |> ignore)
+                
+                sb.Append '.' |> ignore
+                
+                precision |> Option.iter (fun p ->
+                    for _ in 0 .. p - 1 do
+                        sb.Append '0' |> ignore)
+            
             sb.Append ':' |> ignore
-            width |> Option.iter (fun w ->
-                for _ in 0 .. w - 1 do
-                    sb.Append '0' |> ignore)
             
-            sb.Append '.' |> ignore
+            match printfSpec.Flags with
+            | FormatFlags.PlusForPositives ->
+                sb.Append '+' |> ignore
+                buildSection ()
+                sb.Append ";-" |> ignore
+            | _ -> ()
             
-            precision |> Option.iter (fun p ->
-                for _ in 0 .. p - 1 do
-                    sb.Append '0' |> ignore)
+            buildSection ()
             
             Some (sb.ToString())
         | _ -> None
     
     override this.Write (s: PrintableElement) =
+        System.Diagnostics.Debugger.Break ()
         if s.ElementType = PrintableElementType.FromFormatSpecifier then
-
             match lastArg with
             | Some lastArg ->
                 // now we know the prev arg should be baked into the message template
@@ -107,7 +119,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             lastArg <- Some s
         else
             let sValue =
-            
                 match lastArg with
                 | Some lastArg ->
                     let m = logFormatSpecifierRegex.Match (s.Value :?> string)
@@ -122,7 +133,8 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                         
                         match netFormatSpec with
                         | Some fmt ->
-                            m.Groups["start"].Value + fmt + m.Groups["end"].Value
+                            m.Groups["start"].Value + fmt + (s.Value :?> string).Substring(m.Groups["end"].Index)
+                            
                         | None -> s.Value :?> string
                     else
                         // now we know the prev arg should be baked into the message template
