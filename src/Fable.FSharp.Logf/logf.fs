@@ -118,10 +118,12 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             | None -> ()
             lastArg <- Some s
         else
+            let sAsStr = s.Value :?> string
+            
             let sValue =
                 match lastArg with
                 | Some lastArg ->
-                    let m = logFormatSpecifierRegex.Match (s.Value :?> string)
+                    let m = logFormatSpecifierRegex.Match sAsStr
                     
                     if m.Success then
                         let netFormatSpec =
@@ -133,13 +135,18 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                         
                         match netFormatSpec with
                         | Some fmt ->
-                            m.Groups["start"].Value + fmt + (s.Value :?> string).Substring(m.Groups["end"].Index)
-                            
-                        | None -> s.Value :?> string
+                            let sb = StringBuilder()
+                            let endI = m.Groups["end"].Index
+                            sb  .Append(m.Groups["start"].Value)
+                                .Append(fmt)
+                                .Append(sAsStr, endI, sAsStr.Length - endI)
+                                |> ignore
+                            sb.ToString()
+                        | None -> sAsStr
                     else
                         // now we know the prev arg should be baked into the message template
                         msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
-                        s.Value :?> string
+                        sAsStr
                 | None -> s.Value :?> string
             msgBuf.Append sValue |> ignore
             lastArg <- None
