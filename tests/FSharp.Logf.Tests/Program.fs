@@ -79,7 +79,6 @@ module Helpers =
     let serilog2Mel (sl: Serilog.ILogger) : Microsoft.Extensions.Logging.ILogger<'a> =
         use lf = (new SerilogLoggerFactory(sl))
         lf.CreateLogger<'a>()
-#endif
     
     /// Fully renders a logf call, and asserts that the resulting messages are the same as the given output message
     /// (using a Serilog TextWriter sink to compare)
@@ -95,7 +94,8 @@ module Helpers =
         logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMessage
         
     let assertEquivalentOutput expectedRenderedMessage logfCall = assertEquivalentOutputM "" expectedRenderedMessage logfCall
-    
+#endif
+
     /// Checks that the logf calls .Log() with a particular set of parameters, and also check that the rendered message
     /// matches a given expected output
     let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
