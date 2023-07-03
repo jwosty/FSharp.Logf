@@ -1,6 +1,7 @@
 module FSharp.Logf.Tests
 open System
 open System.Collections.Generic
+open System.Globalization
 
 
 #if !FABLE_COMPILER
@@ -8,7 +9,6 @@ open Expecto
 open Expecto.Flip
 open Microsoft.Extensions.Logging
 open FSharp.Logf
-open System.Globalization
 #else
 open Fable.Mocha
 open Fable.Mocha.Flip
@@ -74,41 +74,18 @@ type Helpers =
 
 [<AutoOpen>]
 module Helpers =
+    open System.IO
+    
 #if !FABLE_COMPILER
     open Serilog
     open Serilog.Sinks
     open Serilog.Extensions.Logging
-    open System.IO
     
     let serilog2Mel (sl: Serilog.ILogger) : Microsoft.Extensions.Logging.ILogger<'a> =
         use lf = (new SerilogLoggerFactory(sl))
         lf.CreateLogger<'a>()
-    
-    /// Fully renders a logf call, and asserts that the resulting messages are the same as the given output message
-    /// (using a Serilog TextWriter sink to compare)
-    let assertEquivalentOutputM msg expectedRenderedMessage (expectedLogArgs: (string * obj) list) (logfCall: ILogger<_> -> unit) =
-        do
-            let logger = AssertableLogger<_>()
-            logfCall logger
-            Expect.hasLength logger.Lines 1 "should log exactly one line"
-            let line = logger.Lines[0]
-            line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs
-        
-        do
-            let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
-            
-            use logfTw = new StringWriter()
-            let outputTemplate = "{Message:lj}"
-            let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
-            logfCall logfLogger
-            let logfRender = logfTw.ToString()
-            
-            logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMessage
-        
-        
-    let assertEquivalentOutput expectedRenderedMessage expectedLogArgs logfCall = assertEquivalentOutputM "" expectedRenderedMessage expectedLogArgs logfCall
 #endif
-
+    
     /// check that the rendered message matches a given expected output, and also checks that the logf outputs an
     /// expected set of parameters
     let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
@@ -120,11 +97,14 @@ module Helpers =
             with e -> exns <- e :: exns
         
         do
+    
+#if !FABLE_COMPILER
             let logger = AssertableLogger<_>()
             logfCall logger
             collectExn (fun () -> Expect.hasLength logger.Lines 1 "should log exactly one line")
             let line = logger.Lines[0]
             collectExn (fun () -> line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs)
+#endif
         
     #if !FABLE_COMPILER
         do
@@ -136,13 +116,6 @@ module Helpers =
             
             collectExn (fun () -> logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMsg)
     #endif
-        
-        // do
-        //     let logMethodLogger = AssertableLogger<'a>()
-        //     let logfLogger = AssertableLogger<'a>()
-        //     logMethodCall logMethodLogger
-        //     logfCall logfLogger
-        //     collectExn (fun () -> logfLogger.Lines |> Expect.sequenceEqual ("logf call should be equivalent to Log call" + pt2) logMethodLogger.Lines)
         
         if not (List.isEmpty exns) then
             raise (AggregateException(exns))
@@ -247,7 +220,6 @@ let allTests =
             )
         ]
 // Didn't feel like making direct .Log calls work under Fable because they require dealing with MessageFormatter func
-#if !FABLE_COMPILER
         testList "Oracle tests" [
             testCase "No parameters" (fun () ->
                 (fun l -> logfi l "Hello, world!")
@@ -408,7 +380,7 @@ let allTests =
                 )
                 theory "Float with + flag" valuesF (fun x ->
                     (fun l -> logfi l "%+2.3f{value}" x)
-                    |> assertEquivalentOutput
+                    |> assertEquivalent
                         (sprintf "%+2.3f" x)
                         ["value", x]
                 )
@@ -424,7 +396,6 @@ let allTests =
                     )
             ]
         ]
-#endif
         testList "SharedTests" [
             let dummyExn = makeDummyException ()
             let mkLogfCaseData () =
