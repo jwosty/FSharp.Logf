@@ -86,6 +86,17 @@ module Helpers =
         lf.CreateLogger<'a>()
 #endif
     
+#if FABLE_COMPILER
+    let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
+        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+        
+        let logger = AssertableLogger<_>()
+        logfCall logger
+        Expect.hasLength logger.Lines 1 "should log exactly one line"
+        let line = logger.Lines[0]
+        line.message |> Expect.equal ("Rendered (fable) logf call should match expected value" + pt2) expectedRenderedMsg
+#else
+    
     /// check that the rendered message matches a given expected output, and also checks that the logf outputs an
     /// expected set of parameters
     let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
@@ -97,16 +108,12 @@ module Helpers =
             with e -> exns <- e :: exns
         
         do
-    
-#if !FABLE_COMPILER
             let logger = AssertableLogger<_>()
             logfCall logger
             collectExn (fun () -> Expect.hasLength logger.Lines 1 "should log exactly one line")
             let line = logger.Lines[0]
             collectExn (fun () -> line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs)
-#endif
         
-    #if !FABLE_COMPILER
         do
             use logfTw = new StringWriter()
             let outputTemplate = "{Message:lj}"
@@ -115,10 +122,10 @@ module Helpers =
             let logfRender = logfTw.ToString()
             
             collectExn (fun () -> logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMsg)
-    #endif
         
         if not (List.isEmpty exns) then
             raise (AggregateException(exns))
+    #endif
         
     let assertEquivalent expectedRenderedMsg expectedLogArgs (logfCall: ILogger<'a> -> unit) =
         assertEquivalentM "" expectedRenderedMsg expectedLogArgs logfCall

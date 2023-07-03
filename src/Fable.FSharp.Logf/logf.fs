@@ -32,7 +32,7 @@ let printfFmtSpecPattern =
 
 let netMsgHolePattern =
     """(?<start>"""
-        + """{@?"""
+        + """\{@?"""
         + """[a-zA-Z0-9_]+"""
     + """)"""
     + """(?<fmt>"""
@@ -40,7 +40,7 @@ let netMsgHolePattern =
         + """(:[^\}]+)?"""
     + """)"""
     + """(?<end>"""
-        + """}"""
+        + """\}"""
     + """)"""
 
 #if DOTNET_LIB
@@ -197,7 +197,7 @@ let elogf logger logLevel exn format =
 // (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
 // format specifier (like %s or %+6.4d)
 let logMsgParamNameRegex =
-    Regex("""(""" + printfFmtSpecPattern + """)(\{[a-zA-Z0-9_]+\})""", RegexOptions.ECMAScript)
+    Regex("""(""" + printfFmtSpecPattern + """)(""" + netMsgHolePattern + """)""", RegexOptions.ECMAScript)
 
 // For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
 // or they would show up in the console output unintentionally.
@@ -209,7 +209,9 @@ let inline stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
 let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun s e -> x))) (stripLogMsgParamNames format)
+    Printf.ksprintf (fun x ->
+        logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun s e -> x))
+    ) (stripLogMsgParamNames format)
 let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
     Printf.ksprintf (fun (x:string) ->
         logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
