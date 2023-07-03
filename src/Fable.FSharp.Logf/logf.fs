@@ -32,8 +32,8 @@ let printfFmtSpecPattern =
 
 let netMsgHolePattern =
     """(?<start>"""
-        + """\{@?"""
-        + """[a-zA-Z0-9_]+"""
+        + """\{(?<argName>@?"""
+        + """[a-zA-Z0-9_]+)"""
     + """)"""
     + """(?<fmt>"""
         + """(,[^:\}]+)?"""
@@ -197,33 +197,78 @@ let elogf logger logLevel exn format =
 // (like {myValue}) matches a log message param specifier (like {myValue}) coming immediately after a printf-style
 // format specifier (like %s or %+6.4d)
 let logMsgParamNameRegex =
-    Regex("""(""" + printfFmtSpecPattern + """)(""" + netMsgHolePattern + """)""", RegexOptions.ECMAScript)
+    Regex("""(?<printfFmt>""" + printfFmtSpecPattern + """)(""" + netMsgHolePattern + """)?""", RegexOptions.ECMAScript)
 
-// For the JS implementation, just print to console. First, however, we have to strip any log message param specifiers
-// or they would show up in the console output unintentionally.
+// For the JS implementation, we use a shim which doesn't pass true structured parameters, and flattens everything to a
+// string by the time the logger recieves it (because PrintfEnv doesn't work in Fable).
+// First, however, we have to strip any log message param specifiers or they would show up in the console output
+// unintentionally. We also must do a little bit of magic to handle .NET-style format specifiers as well (see
+// mapReplacementsDynamic)
 
-let inline stripLogMsgParamNames (format: Format<'T, unit, string, unit>) =
+// Scans through a format literal (the first parameter to a printf-style function), removing parameter names (i.e.
+// changing "%s{foo}" to "%s", and collecting all custom .Net-style formatters (i.e. from "%f{foo:#.#}" we grab ":#.#")
+let processLogMsgParams (format: Format<'T, unit, string, unit>) : string option list * Format<'T, unit, string, unit> =
+    let paramReplacementFmt = System.Collections.Generic.List<string option>()
+    let result: string =
+        logMsgParamNameRegex.Replace (format.Value, (fun m ->
+            let replacement =
+                m.Groups["fmt"]
+                |> Option.ofObj
+                |> Option.map (fun g -> g.Value)
+                |> Option.filter (String.IsNullOrWhiteSpace >> not)
+            paramReplacementFmt.Add replacement
+            m.Groups["printfFmt"].Value
+        ))
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
-    (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
+    // (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
+    Seq.toList paramReplacementFmt, (new Format<'T, unit, string, unit>(result))
+
+// Takes a list of .Net custom formatters (like ":#.#"), and a constructed printf function, and constructs a new
+// function (wrapping around the printf function) but which applies these custom formatters to the appropriate
+// params before passing it through. It's possible to write a version of this that works in .NET (leveraging reflection),
+// but this version only works in Fable.
+let rec mapReplacementsDynamic (fmts: string option list) (f: obj) : obj =
+    // Since Fable = Javascript, we can just "reinterpret" cast the function. This approach wouldn't work on the .NET
+    // runtime because you can't runtime-cast a (int -> string) to a (object -> object).
+    let f' = f :?> obj -> obj
+    match fmts with
+    | Some(hd)::tl ->
+        // Again, since we're in Javascript land we don't actually have to make this wrapper lambda have the same
+        // parameter and return type as f. Just tell the compiler, "trust me, this works."
+        (fun (x: obj) ->
+            let fmt = "{0" + hd + "}"
+            let x' = String.Format(fmt, x)
+            let y = f' x'
+            let cont = mapReplacementsDynamic tl y
+            cont) :> obj
+    | None::tl ->
+        mapReplacementsDynamic tl f'
+    | [] ->
+        f
 
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
-let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun x ->
-        logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun s e -> x))
-    ) (stripLogMsgParamNames format)
-let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) =
-    Printf.ksprintf (fun (x:string) ->
-        logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
-    ) (stripLogMsgParamNames format)
+let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) : 'T =
+    let replacements, processedFmt = processLogMsgParams format
+    let f =
+        Printf.ksprintf (fun x ->
+            logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x))
+        ) processedFmt
+        |> unbox<'T>
+    let f' = mapReplacementsDynamic replacements f
+    f' |> unbox<'T>
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) : 'T =
+    let replacements, processedFmt = processLogMsgParams format
+    let f =
+        Printf.ksprintf (fun x ->
+            logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
+        ) processedFmt
+        |> unbox<'T>
+    let f' = mapReplacementsDynamic replacements f
+    f' |> unbox<'T>
 
 #endif
 
-/// <summary>
-/// 
-/// </summary>
-/// <param name="logger"></param>
-/// <param name="format"></param>
 let logft logger format = logf logger LogLevel.Trace format
 let logfd logger format = logf logger LogLevel.Debug format
 let logfi logger format = logf logger LogLevel.Information format

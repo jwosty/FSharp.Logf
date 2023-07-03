@@ -7,3 +7,4 @@ Fable.Core
 FSharp.Core
 Serilog.Sinks.TextWriter
 Serilog.Extensions.Logging
+Fable.Browser.Dom

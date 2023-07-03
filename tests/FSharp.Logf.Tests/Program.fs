@@ -42,17 +42,25 @@ type AssertableLogger<'a>(?level) =
         override this.IsEnabled (level': LogLevel) = level' >= level
         override this.Log<'TState> (logLevel, eventId, state: 'TState, error, formatter) =
             let msg, args =
-                match state :> obj with
-#if !FABLE_COMPILER
-                // See FSharp.Logf.ExpectoMsLoggerAdapter
-                | :? IEnumerable<KeyValuePair<string, obj>> as structure ->
+                let f (structure: IEnumerable<KeyValuePair<string, obj>>) =
                     let msgKv = structure |> Seq.find (fun x -> x.Key = "{OriginalFormat}")
                     let msg = msgKv.Value :?> string
                     let args = structure |> Seq.filter (fun x -> x.Key <> "{OriginalFormat}") |> Seq.map (fun x -> x.Key, x.Value) |> Seq.toList
                     msg, args
-#endif
+                
+#if FABLE_COMPILER
+                try
+                    f ((state :> obj) :?> IEnumerable<KeyValuePair<string, obj>>)
+                with _ ->
+                    formatter.Invoke(state, error), []
+#else
+                match state :> obj with
+                // See FSharp.Logf.ExpectoMsLoggerAdapter
+                | :? IEnumerable<KeyValuePair<string, obj>> as structure ->
+                    f structure
                 | _ ->
                     formatter.Invoke(state, error), []
+#endif
             this.Lines.Add { logLevel = logLevel; eventId = eventId; message = msg; args = args; error = Option.ofObj error }
 
     interface ILogger<'a>
@@ -268,7 +276,12 @@ let allTests =
                 let x = {| Latitude = 25; Longitude = 134 |}
                 (fun l -> logfi l "Processing %A{@sensorInput}" x)
                 |> assertEquivalent
+#if !FABLE_COMPILER
                     """Processing {"Latitude":25,"Longitude":134}"""
+#else
+                    // This is just how Fable formats %A objects... Not going to override its behavior.
+                    """Processing [object Object]"""
+#endif
                     ["@sensorInput", x]
             )
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; 42. ]
