@@ -14,8 +14,6 @@ open BlackFox.MasterOfFoo
 open Fable.Microsoft.Extensions.Logging
 #endif
 
-// TODO: write tests
-
 // see: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/plaintext-formatting#format-specifiers-for-printf
 // TODO: This probably isn't quite perfect -- there are likely still some obscure corner cases that this doesn't
 // handle correctly. For anyone looking into this, you could prod it with things that aren't quite valid printf format
@@ -50,7 +48,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
     inherit PrintfEnv<unit, string, 'Unit>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
-    static let logFormatSpecifierRegex = Regex("""\A""" + netMsgHolePattern)
+    static let logFormatSpecifierRegex = Regex("\A" + netMsgHolePattern)
     
     let args = new System.Collections.Generic.List<obj>()
     // We actually want to override PrintfEnv.Finalize: unit -> unit, but that conflicts with Object.Finalize: unit -> unit,
@@ -62,6 +60,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | Some lastArg -> msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
         | None -> ()
         lastArg <- None
+        System.Diagnostics.Debugger.Break ()
         match exn with
         | Some exn ->
             logger.Log(logLevel, exn, msgBuf.ToString (), args.ToArray ())
@@ -70,7 +69,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         Unchecked.defaultof<'Unit>
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
-        System.Diagnostics.Debugger.Break ()
         match printfSpec.TypeChar with
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
@@ -81,27 +79,25 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 if not printfSpec.IsWidthSpecified && printfSpec.Precision = 0 then
                     // special case for %0.0f
                     Some 1, Some 0
-                else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else None)
+                else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else Some 6)
+            
+            width |> Option.iter (fun w -> sb.Append(',').Append(w) |> ignore)
             
             let buildSection () =
-                width |> Option.iter (fun w ->
-                    for _ in 0 .. w - 1 do
-                        sb.Append '0' |> ignore)
-                
-                sb.Append '.' |> ignore
+                sb.Append "0." |> ignore
                 
                 precision |> Option.iter (fun p ->
                     for _ in 0 .. p - 1 do
                         sb.Append '0' |> ignore)
             
-            sb.Append ':' |> ignore
             
             match printfSpec.Flags with
             | FormatFlags.PlusForPositives ->
-                sb.Append '+' |> ignore
+                sb.Append ":+" |> ignore
                 buildSection ()
                 sb.Append ";-" |> ignore
-            | _ -> ()
+            | _ ->
+                sb.Append ':' |> ignore
             
             buildSection ()
             
@@ -109,7 +105,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | _ -> None
     
     override this.Write (s: PrintableElement) =
-        System.Diagnostics.Debugger.Break ()
         if s.ElementType = PrintableElementType.FromFormatSpecifier then
             match lastArg with
             | Some lastArg ->

@@ -139,6 +139,23 @@ module Helpers =
     let assertEquivalent (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
         assertEquivalentM "" logMethodCall expectedRenderedMsg logfCall
 
+let theoryAssertEquivalent name values logfCall logCall expectedRenderedMsg =
+    testList name [
+        for value in values ->
+            testCase (sprintf "(%A)" value) (fun () ->
+                logfCall
+                |> assertEquivalent
+                    logCall
+                    expectedRenderedMsg
+            )
+    ]
+
+let theory name values testCode =
+    testList name [
+        for value in values ->
+            testCase (sprintf "(%A)" value) (fun () -> testCode value)
+    ]
+
 [<Tests>]
 let allTests =
     testList "FSharp_Logf_sln" [
@@ -262,6 +279,9 @@ let allTests =
                     (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
                     """Processing {"Latitude":25,"Longitude":134}"""
             )
+            let values = [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; 42. ]
+            let valuesD = [ 0m; 12345.98m; -10m; 0.012m ]
+            let valuesI = [ 0xdeadbeef; 42 ]
             testList ".NET-style format specifiers" [
                 testCase "Float case 1" (fun () ->
                     (fun l -> logfi l "Duration: %f{durationMs:0.#}" (5. / 3.))
@@ -269,115 +289,123 @@ let allTests =
                         (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", (5. / 3.)))
                         (sprintf "Duration: %s" (Helpers.StringFormat("{0:0.#}", 5. / 3.)))
                 )
-                testCase "Float case 2" (fun () ->
-                    (fun l -> logfi l "Duration: %f{durationMs:0.##}" (5. / 3.))
+                theory "Float case 1" values (fun x ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.#}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("Duration: {durationMs:0.##}", (5. / 3.)))
-                        (sprintf "Duration: %s" (Helpers.StringFormat ("{0:0.##}", 5. / 3.)))
+                        (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", x))
+                        (sprintf "Duration: %s" (Helpers.StringFormat("{0:0.#}", x)))
                 )
-                testCase "Alignment" (fun () ->
-                    (fun l -> logfi l "%f{balance,-10}" 12345.98m)
+                theory "Float case 2" values (fun x ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.##}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{balance,-10}", 12345.98m))
-                        (Helpers.StringFormat("{0,-10}", 12345.98m))
+                        (fun l -> l.LogInformation ("Duration: {durationMs:0.##}", x))
+                        (sprintf "Duration: %s" (Helpers.StringFormat ("{0:0.##}", x)))
                 )
-                testCase "Alignment with currency format" (fun () ->
-                    (fun l -> logfi l "%f{balance,-10:C}" 12345.98m)
+                theory "Alignment" valuesD (fun x ->
+                    (fun l -> logfi l "%f{balance,-10}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{balance,-10:C}", 12345.98m))
-                        (Helpers.StringFormat("{0:C}", 12345.98m))
+                        (fun l -> l.LogInformation ("{balance,-10}", x))
+                        (Helpers.StringFormat("{0,-10}", x))
                 )
-                testCase "Hex format" (fun () ->
-                    (fun l -> logfi l "%i{value:X}" 0xdeadbeef)
+                theory "Alignment with currency format" valuesD (fun x ->
+                    (fun l -> logfi l "%f{balance,-10:C}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value:X}", 0xdeadbeef))
-                        (Helpers.StringFormat("{0:X}", 0xdeadbeef))
+                        (fun l -> l.LogInformation ("{balance,-10:C}", x))
+                        (Helpers.StringFormat("{0,-10:C}", x))
                 )
-                testCase "Corner case 1" (fun () ->
-                    (fun l -> logfi l "%i{value}:X}" 0xdeadbeef)
+                theory "Hex format" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value:X}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value}:X}}", 0xdeadbeef))
-                        (sprintf "%i:X}" 0xdeadbeef)
+                        (fun l -> l.LogInformation ("{value:X}", x))
+                        (Helpers.StringFormat("{0:X}", x))
                 )
-                testCase "Corner case 2" (fun () ->
-                    (fun l -> logfi l "%i{value},3}" 0xdeadbeef)
+                theory "Corner case 1" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value}:X}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value},3}}", 0xdeadbeef))
-                        (sprintf "%i,3}" 0xdeadbeef)
+                        (fun l -> l.LogInformation ("{value}:X}}", x))
+                        (sprintf "%i:X}" x)
+                )
+                theory "Corner case 2" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value},3}" x)
+                    |> assertEquivalent
+                        (fun l -> l.LogInformation ("{value},3}}", x))
+                        (sprintf "%i,3}" x)
                 )
             ]
             testList "printf format specifiers" [
-                testCase "Hex format" (fun () ->
-                    (fun l -> logfi l "%x{value}" 0xdeadbeef)
+                theory "Hex format" valuesI (fun x ->
+                    (fun l -> logfi l "%x{value}" x)
                     |> assertEquivalentM "little x"
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:x}", 0xdeadbeef))
-                        (sprintf "%x" 0xdeadbeef)
-                    (fun l -> logfi l "%X{value}" 0xdeadbeef)
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:x}", x))
+                        (sprintf "%x" x)
+                    (fun l -> logfi l "%X{value}" x)
                     |> assertEquivalentM "big X"
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", 0xdeadbeef))
-                        (sprintf "%X" 0xdeadbeef)
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", x))
+                        (sprintf "%X" x)
                 )
-                testCase "Float with zero left and zero right decimal places" (fun () ->
-                    (fun l -> logfi l "%0.0f{value}" (5. / 3.))
+                theory "Float with width 0 and 0 right decimal places" values (fun x ->
+                    (fun l -> logfi l "%0.0f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
-                        (sprintf "%0.0f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,1:0.}", x))
+                        (sprintf "%0.0f" x)
                 )
-                testCase "Float with one right decimal place" (fun () ->
-                    (fun l -> logfi l "%.1f{value}" (5. / 3.))
+                theory "Float with 1 right decimal place" values (fun x ->
+                    (fun l -> logfi l "%.1f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0}", 5. / 3.))
-                        (sprintf "%0.0f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.0}", x))
+                        (sprintf "%0.1f" x)
                 )
-                testCase "Float with two right decimal places" (fun () ->
-                    (fun l -> logfi l "%.2f{value}" (5. / 3.))
+                theory "Float with 2 right decimal places" values (fun x ->
+                    (fun l -> logfi l "%.2f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.00}", 5. / 3.))
-                        (sprintf "%.2f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.00}", x))
+                        (sprintf "%.2f" x)
                 )
-                testCase "Float with ten right decimal places" (fun () ->
-                    (fun l -> logfi l "%.10f{value}" (5. / 3.))
+                theory "Float with 10 right decimal places" values (fun x ->
+                    (fun l -> logfi l "%.10f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:.0000000000}", 5. / 3.))
-                        (sprintf "%.10f{value}" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.0000000000}", x))
+                        (sprintf "%.10f" x)
                 )
-                testCase "Float with one left decimal place" (fun () ->
-                    (fun l -> logfi l "%1f{value}" (5. / 3.))
+                theory "Float with width of 1 and default number of right decimal places" values (fun x ->
+                    (fun l -> logfi l "%1f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", 5. / 3.))
-                        (sprintf "%1f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,1:0.000000}", x))
+                        (sprintf "%1f" x)
                 )
-                testCase "Float with two left decimal places" (fun () ->
-                    (fun l -> logfi l "%2f{value}" (5. / 3.))
+                theory "Float with width of 2 and default number of right decimal places" values (fun x ->
+                    (fun l -> logfi l "%2f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.}", 5. / 3.))
-                        (sprintf "%2f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,2:0.000000}", x))
+                        (sprintf "%2f" x)
                 )
-                testCase "Float with ten left decimal places" (fun () ->
-                    (fun l -> logfi l "%10f{value}" (5. / 3.))
+                theory "Float with width of 10 and default number of right decimal places" values (fun x ->
+                    (fun l -> logfi l "%10f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0000000000.}", 5. / 3.))
-                        (sprintf "%10f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,10:0.000000}", x))
+                        (sprintf "%10f" x)
                 )
-                testCase "Float with two left and three right decimal places" (fun () ->
-                    (fun l -> logfi l "%2.3f{value}" (5. / 3.))
+                theory "Float with width of 2 and 3 right decimal places" values (fun x ->
+                    (fun l -> logfi l "%2.3f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:00.000}", 5. / 3.))
-                        (sprintf "%2.3f" (5. / 3.))
+                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,2:0.000}", x))
+                        (sprintf "%2.3f" x)
                 )
-                testList "Float with + flag" [
-                    for value in [ -42.; 0.; 42. ] ->
-                        testCase (string value) (fun () ->
-                            (fun l -> logfi l "%+2.3f{value}" value)
-                            |> assertEquivalentOutput (sprintf "%+2.3f" value)
-                        )
-                ]
-                testCase "Several interspersed format specifiers" (fun () ->
-                    (fun l -> logfi l "%4.1f{float}, %b{boolean}, %x{hex}" 42.59 false 0xcafebabe)
-                    |> assertEquivalent
-                        (fun l -> l.LogInformation ("{float:0000.0}, {boolean}, {hex:x}", 42.59, false, 0xcafebabe))
-                        (sprintf "%4.1f, %b, %x" 42.59 false 0xcafebabe)
-                ) 
+                theory "Float with + flag" values (fun x ->
+                    String.Format("{0,2:+0.000;-0.000}", -123.45)
+                    |> ignore
+                    (fun l -> logfi l "%+2.3f{value}" x)
+                        |> assertEquivalentOutput (sprintf "%+2.3f" x)
+                )
+                theory "Several interspersed format specifiers"
+                    [ 42.59, false, 0xcafebabe
+                      123.45, true, 0xdeadbeef ]
+                    (fun (x,y,z) ->
+                        (fun l -> logfi l "%4.1f{float}, %b{boolean}, %x{hex}" x y z)
+                        |> assertEquivalent
+                            (fun l -> l.LogInformation ("{float,4:0.0}, {boolean}, {hex:x}", x, y, z))
+                            (sprintf "%4.1f, %b, %x" x y z)
+                    ) 
             ]
         ]
 #endif
@@ -490,7 +518,7 @@ let allTests =
                     logfOrElogf l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
-                        { emptyLogLine with message = "Params: {a:.00},{b:.000},{c:.0000000000}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
+                        { emptyLogLine with message = "Params: {a:0.00},{b:0.000},{c:0.0000000000}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
 #else
                         { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
 #endif
@@ -501,7 +529,7 @@ let allTests =
                     logfOrElogf l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
-                        { emptyLogLine with message = "{xyz:00.000} {abc:0000000000.} {d:+.00000;-.00000} {w:00000.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                        { emptyLogLine with message = "{xyz,2:0.000} {abc,10:0.000000} {d:+0.00000;-0.00000} {w,5:0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
