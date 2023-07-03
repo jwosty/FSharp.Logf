@@ -421,17 +421,23 @@ let allTests =
         ]
 #endif
         testList "SharedTests" [
-            let err = makeDummyException ()
-            let mkLogfCaseData () = [
-                nameof(logf), (logf, LogLine.empty)
-                nameof(elogf), ((fun logger logLevel args -> elogf logger logLevel err args), { LogLine.empty with error = Some err })
-            ]
+            let dummyExn = makeDummyException ()
+            let mkLogfCaseData () =
+                let funcs =
+                    [
+                        nameof(logf), (logf, None)
+                        nameof(elogf), ((fun logger level args -> elogf logger level dummyExn args), Some dummyExn)
+                    ]
+                let levels = [ LogLevel.Trace; LogLevel.Critical ]
+                List.allPairs funcs levels
+                |> List.map (fun ((logfFuncName, (logfFunc, err)), level) ->
+                    (sprintf "%s,%O" logfFuncName level), (logfFunc, { LogLine.empty with error = err; logLevel = level}, level))
             testList "Escapes curly braces not part of a named parameter" [
                 // .NET impl should escape the curly braces lest they be interpreted as a message template by the ILogger object.
                 // Fable impl doesn't need to do this since the thing printing won't actually output named parameters anyway.
-                theory "case 1" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "case 1" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfFunc l LogLevel.Information "%s{" "Yo"
+                    logfFunc l level "%s{" "Yo"
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -440,9 +446,9 @@ let allTests =
                         { emptyLogLine with message = "Yo{" }
 #endif
                 )
-                theory "case 2" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "case 2" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfFunc l LogLevel.Information "%s{%d}" "SomeString" 42
+                    logfFunc l level "%s{%d}" "SomeString" 42
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -451,9 +457,9 @@ let allTests =
                         { emptyLogLine with message = "SomeString{42}" }
 #endif
                 )
-                theory "case 3" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "case 3" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfFunc l LogLevel.Information "%s{}%d {iaminvalid}" "XYZ" -797
+                    logfFunc l level "%s{}%d {iaminvalid}" "XYZ" -797
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -462,9 +468,9 @@ let allTests =
                         { emptyLogLine with message = "XYZ{}-797 {iaminvalid}" }
 #endif
                 )
-                theory "case 4" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "case 4" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfFunc l LogLevel.Information "{%s{}%d}" "XYZ" -797
+                    logfFunc l level "{%s{}%d}" "XYZ" -797
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -473,10 +479,10 @@ let allTests =
                         { emptyLogLine with message = "{XYZ{}-797}" }
 #endif
                 )
-                theory "case 5" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "case 5" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     // Note: %f.10 isn't a valid format specifier, which is why the {x} should get escaped
-                    logfFunc l LogLevel.Information "{%.4f{}%d}%f.10{x}" 100.2 -797 1.
+                    logfFunc l level "{%.4f{}%d}%f.10{x}" 100.2 -797 1.
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -488,10 +494,10 @@ let allTests =
             ]
             
             testList "Can print various named parameters" [
-                theory "basic case" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "basic case" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfFunc l LogLevel.Information "Drawing rectangle with dimensions: %f{width},%f{height}" 100. 234.
+                    logfFunc l level "Drawing rectangle with dimensions: %f{width},%f{height}" 100. 234.
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0] }
@@ -499,10 +505,10 @@ let allTests =
                         { emptyLogLine with message = "Drawing rectangle with dimensions: 100.000000,234.000000" }
 #endif
                 )
-                theory "params reversed" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "params reversed" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfFunc l LogLevel.Information "Drawing rectangle with dimensions (reversed): %f{height},%f{width}" 234. 100.
+                    logfFunc l level "Drawing rectangle with dimensions (reversed): %f{height},%f{width}" 234. 100.
                     l.LastLine |> Expect.equal "Log lines" 
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
@@ -510,10 +516,10 @@ let allTests =
                         { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): 234.000000,100.000000" }
 #endif
                 )
-                theory "param names may contain alphanumerics or underscores" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "param names may contain alphanumerics or underscores" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfFunc l LogLevel.Information "%f{param1},%f{2param},%f{foo_bar}" 234. 100. 3.
+                    logfFunc l level "%f{param1},%f{2param},%f{foo_bar}" 234. 100. 3.
                     l.LastLine |> Expect.equal "Log lines" 
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "{param1},{2param},{foo_bar}"; args = ["param1", 234.0; "2param", 100.0; "foo_bar", 3.] }
@@ -521,10 +527,10 @@ let allTests =
                         { emptyLogLine with message = "234.000000,100.000000,3.000000" }
 #endif
                 )
-                theory "fmt specs with precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "fmt specs with precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfFunc l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
+                    logfFunc l level "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "Params: {a:0.00;-.00},{b:0.000;-.000},{c:0.0000000000;-.0000000000}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
@@ -532,10 +538,10 @@ let allTests =
                         { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
 #endif
                 )
-                theory "fmt specs with flags, width, and precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine) ->
+                theory "fmt specs with flags, width, and precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfFunc l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
+                    logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "{xyz:0.000;-.000} {abc:000.000000;-00.000000} {d:+0.00000;-.00000} {w,5:0.00000;-.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
@@ -547,7 +553,7 @@ let allTests =
             ]
         ]
         testList "Functions log at the correct level" [
-            for (logLevel, logfVariant, elogfVariantOpt) in [
+            for (level, logfVariant, elogfVariantOpt) in [
                 LogLevel.Trace, logft, None
                 LogLevel.Debug, logfd, None
                 LogLevel.Information, logfi, None
@@ -556,12 +562,12 @@ let allTests =
                 LogLevel.Critical, logfc, Some elogfc
             ] do
                 // see https://github.com/fable-compiler/Fable/issues/3315
-                yield testCase (Enum.GetName(typeof<LogLevel>, logLevel)) (fun () ->
+                yield testCase (Enum.GetName(typeof<LogLevel>, level)) (fun () ->
                     let l = mkLogger ()
-                    logf l logLevel "Hello, %s!" "world"
+                    logf l level "Hello, %s!" "world"
                     logfVariant l "Hello, %s!" "world"
-                    l.Lines[0].logLevel |> Expect.equal "logLevel" logLevel
-                    l.Lines[0].message |> Expect.equal "message" "Hello, world!"
+                    l.Lines[0].logLevel |> Expect.equal (nameof(Unchecked.defaultof<LogLine>.logLevel)) level
+                    l.Lines[0].message |> Expect.equal (nameof(Unchecked.defaultof<LogLine>.message)) "Hello, world!"
                     l.Lines[1] |> Expect.equal "logf variant should be the same as calling logf with the corresponding level" l.Lines[0]
                     
                     let err = makeDummyException ()
