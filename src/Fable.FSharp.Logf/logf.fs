@@ -81,25 +81,40 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                     Some 1, Some 0
                 else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else Some 6)
             
-            width |> Option.iter (fun w -> sb.Append(',').Append(w) |> ignore)
+            System.Diagnostics.Debugger.Break ()
+            match width, (printfSpec.Flags.HasFlag FormatFlags.PadWithZeros) with
+            | Some w, false ->
+                sb.Append(',').Append(w) |> ignore
+            | _ ->
+                ()
             
-            let buildSection () =
-                sb.Append "0." |> ignore
+            let buildSection w =
+                for _ in 0 .. w - 1 do
+                    sb.Append '0' |> ignore
+                sb.Append '.' |> ignore
                 
+                System.Diagnostics.Debugger.Break ()
                 precision |> Option.iter (fun p ->
                     for _ in 0 .. p - 1 do
                         sb.Append '0' |> ignore)
             
+            let w =
+                match width, printfSpec.Flags.HasFlag FormatFlags.PadWithZeros, precision with
+                | Some w, true, Some p -> w - p - 1 |> max 1
+                | Some w, true, None -> w |> max 1
+                | _ -> 1
             
             match printfSpec.Flags with
             | FormatFlags.PlusForPositives ->
                 sb.Append ":+" |> ignore
-                buildSection ()
+                buildSection w
                 sb.Append ";-" |> ignore
             | _ ->
                 sb.Append ':' |> ignore
+                buildSection w
+                sb.Append ";-" |> ignore
             
-            buildSection ()
+            buildSection (w - 1)
             
             Some (sb.ToString())
         | _ -> None
