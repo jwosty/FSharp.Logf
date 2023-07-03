@@ -246,26 +246,24 @@ let rec mapReplacementsDynamic (fmts: string option list) (f: obj) : obj =
     | [] ->
         f
 
+let klogf f (format: Format<'T, unit, string, unit>) : 'T =
+    let replacements, processedFmt = processLogMsgParams format
+    let f =
+        Printf.ksprintf f processedFmt
+        |> unbox<'T>
+    let f' = mapReplacementsDynamic replacements f
+    f' |> unbox<'T>
+
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
 let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) : 'T =
-    let replacements, processedFmt = processLogMsgParams format
-    let f =
-        Printf.ksprintf (fun x ->
-            logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x))
-        ) processedFmt
-        |> unbox<'T>
-    let f' = mapReplacementsDynamic replacements f
-    f' |> unbox<'T>
+    klogf
+        (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x)))
+        format
 let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) : 'T =
-    let replacements, processedFmt = processLogMsgParams format
-    let f =
-        Printf.ksprintf (fun x ->
-            logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x))
-        ) processedFmt
-        |> unbox<'T>
-    let f' = mapReplacementsDynamic replacements f
-    f' |> unbox<'T>
+    klogf
+        (fun x -> logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x)))
+        format
 
 #endif
 
