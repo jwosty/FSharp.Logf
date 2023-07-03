@@ -86,23 +86,32 @@ module Helpers =
     
     /// Fully renders a logf call, and asserts that the resulting messages are the same as the given output message
     /// (using a Serilog TextWriter sink to compare)
-    let assertEquivalentOutputM msg expectedRenderedMessage logfCall =
-        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+    let assertEquivalentOutputM msg expectedRenderedMessage (expectedLogArgs: (string * obj) list) (logfCall: ILogger<_> -> unit) =
+        do
+            let logger = AssertableLogger<_>()
+            logfCall logger
+            Expect.hasLength logger.Lines 1 "should log exactly one line"
+            let line = logger.Lines[0]
+            line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs
         
-        use logfTw = new StringWriter()
-        let outputTemplate = "{Message:lj}"
-        let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
-        logfCall logfLogger
-        let logfRender = logfTw.ToString()
+        do
+            let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+            
+            use logfTw = new StringWriter()
+            let outputTemplate = "{Message:lj}"
+            let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
+            logfCall logfLogger
+            let logfRender = logfTw.ToString()
+            
+            logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMessage
         
-        logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMessage
         
-    let assertEquivalentOutput expectedRenderedMessage logfCall = assertEquivalentOutputM "" expectedRenderedMessage logfCall
+    let assertEquivalentOutput expectedRenderedMessage expectedLogArgs logfCall = assertEquivalentOutputM "" expectedRenderedMessage expectedLogArgs logfCall
 #endif
 
-    /// Checks that the logf calls .Log() with a particular set of parameters, and also check that the rendered message
-    /// matches a given expected output
-    let assertEquivalentM msg (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
+    /// check that the rendered message matches a given expected output, and also checks that the logf outputs an
+    /// expected set of parameters
+    let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
         let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
         
         let mutable exns = []
@@ -110,20 +119,22 @@ module Helpers =
             try f ()
             with e -> exns <- e :: exns
         
+        do
+            let logger = AssertableLogger<_>()
+            logfCall logger
+            collectExn (fun () -> Expect.hasLength logger.Lines 1 "should log exactly one line")
+            let line = logger.Lines[0]
+            collectExn (fun () -> line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs)
+        
     #if !FABLE_COMPILER
         do
-            use logMethodTw = new StringWriter()
             use logfTw = new StringWriter()
             let outputTemplate = "{Message:lj}"
-            let logMethodLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logMethodTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
             let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
-            logMethodCall logMethodLogger
             logfCall logfLogger
             let logfRender = logfTw.ToString()
-            let logMethodRender = logMethodTw.ToString()
             
             collectExn (fun () -> logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMsg)
-            // collectExn (fun () -> logMethodRender |> Expect.equal ("Rendered log method call should match expected value" + pt2) expectedRenderedMsg)
     #endif
         
         // do
@@ -136,17 +147,17 @@ module Helpers =
         if not (List.isEmpty exns) then
             raise (AggregateException(exns))
         
-    let assertEquivalent (logMethodCall: ILogger<'a> -> unit) expectedRenderedMsg (logfCall: ILogger<'a> -> unit) =
-        assertEquivalentM "" logMethodCall expectedRenderedMsg logfCall
+    let assertEquivalent expectedRenderedMsg expectedLogArgs (logfCall: ILogger<'a> -> unit) =
+        assertEquivalentM "" expectedRenderedMsg expectedLogArgs logfCall
 
-let theoryAssertEquivalent name values logfCall logCall expectedRenderedMsg =
+let theoryAssertEquivalent name values logfCall expectedRenderedMsg expectedLogArgs =
     testList name [
         for value in values ->
             testCase (sprintf "(%A)" value) (fun () ->
                 logfCall
                 |> assertEquivalent
-                    logCall
                     expectedRenderedMsg
+                    expectedLogArgs
             )
     ]
 
@@ -241,171 +252,165 @@ let allTests =
             testCase "No parameters" (fun () ->
                 (fun l -> logfi l "Hello, world!")
                 |> assertEquivalent
-                    (fun l -> l.LogInformation "Hello, world!")
                     "Hello, world!"
+                    []
             )
             testCase "One named parameter" (fun () ->
                 (fun l -> logfi l "Hello, %s{Person}" "Sam")
                 |> assertEquivalent
-                    (fun l -> l.LogInformation ("Hello, {Person}", "Sam"))
                     (sprintf "Hello, %s" "Sam")
+                    ["Person", "Sam"]
             )
             testCase "Many named parameters" (fun () ->
                 (fun l -> logfi l "A is %s{A}, B is %d{B}, C is %b{C}" "foo" 42 false)
                 |> assertEquivalent
-                    (fun l -> l.LogInformation ("A is {A}, B is {B}, C is {C}", "foo", 42, false))
                     (sprintf "A is %s, B is %d, C is %b" "foo" 42 false)
+                    ["A", "foo"; "B", 42; "C", false]
             )
             testCase "One unnamed parameter" (fun () ->
                 (fun l -> logfi l "Hello, %s" "Sam")
                 |> assertEquivalent
-                    (fun l -> l.LogInformation "Hello, Sam")
                     (sprintf "Hello, %s" "Sam")
+                    []
             )
             testCase "Many unnamed parameters" (fun () ->
                 (fun l -> logfi l "A is %s, B is %d, C is %b" "foo" 42 false)
                 |> assertEquivalent
-                    (fun l -> l.LogInformation ("A is foo, B is 42, C is false", "foo", 42, false))
                     (sprintf "A is %s, B is %d, C is %b" "foo" 42 false)
+                    []
             )
             testCase "Many named and unnamed parameters" (fun () ->
                 (fun l -> logfi l "A is %s{A}, B is %d, C is %b{C}, D is %s" "foo" 42 false "bar")
                 |> assertEquivalent
-                    (fun l -> l.LogInformation ("A is {A}, B is 42, C is {C}, D is bar", "foo", false))
                     (sprintf "A is %s, B is %d, C is %b, D is %s" "foo" 42 false "bar")
+                    ["A", "foo"; "C", false]
             )
             testCase "Named parameter with destructure operator" (fun () ->
                 let x = {| Latitude = 25; Longitude = 134 |}
                 (fun l -> logfi l "Processing %A{@sensorInput}" x)
                 |> assertEquivalent
-                    (fun l -> l.LogInformation ("Processing {@sensorInput}", x))
                     """Processing {"Latitude":25,"Longitude":134}"""
+                    ["@sensorInput", x]
             )
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; 42. ]
             let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
             let valuesI = caseData [ 0xdeadbeef; 42 ]
             testList ".NET-style format specifiers" [
-                testCase "Float case 1" (fun () ->
-                    (fun l -> logfi l "Duration: %f{durationMs:0.#}" (5. / 3.))
-                    |> assertEquivalent
-                        (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", (5. / 3.)))
-                        (sprintf "Duration: %s" (Helpers.StringFormat("{0:0.#}", 5. / 3.)))
-                )
                 theory "Float case 1" valuesF (fun x ->
                     (fun l -> logfi l "Duration: %f{durationMs:0.#}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("Duration: {durationMs:0.#}", x))
                         (sprintf "Duration: %s" (Helpers.StringFormat("{0:0.#}", x)))
+                        ["durationMs", x]
                 )
                 theory "Float case 2" valuesF (fun x ->
                     (fun l -> logfi l "Duration: %f{durationMs:0.##}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("Duration: {durationMs:0.##}", x))
                         (sprintf "Duration: %s" (Helpers.StringFormat ("{0:0.##}", x)))
+                        ["durationMs", x]
                 )
                 theory "Alignment" valuesD (fun x ->
                     (fun l -> logfi l "%f{balance,-10}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{balance,-10}", x))
                         (Helpers.StringFormat("{0,-10}", x))
+                        ["balance", x]
                 )
                 theory "Alignment with currency format" valuesD (fun x ->
                     (fun l -> logfi l "%f{balance,-10:C}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{balance,-10:C}", x))
                         (Helpers.StringFormat("{0,-10:C}", x))
+                        ["balance", x]
                 )
                 theory "Hex format" valuesI (fun x ->
                     (fun l -> logfi l "%i{value:X}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value:X}", x))
                         (Helpers.StringFormat("{0:X}", x))
+                        ["value", x]
                 )
                 theory "Corner case 1" valuesI (fun x ->
                     (fun l -> logfi l "%i{value}:X}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value}:X}}", x))
                         (sprintf "%i:X}" x)
+                        ["value", x]
                 )
                 theory "Corner case 2" valuesI (fun x ->
                     (fun l -> logfi l "%i{value},3}" x)
                     |> assertEquivalent
-                        (fun l -> l.LogInformation ("{value},3}}", x))
                         (sprintf "%i,3}" x)
+                        ["value", x]
                 )
             ]
             testList "printf format specifiers" [
                 theory "Hex format" valuesI (fun x ->
                     (fun l -> logfi l "%x{value}" x)
                     |> assertEquivalentM "little x"
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:x}", x))
                         (sprintf "%x" x)
+                        ["value", x]
                     (fun l -> logfi l "%X{value}" x)
                     |> assertEquivalentM "big X"
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:X}", x))
                         (sprintf "%X" x)
+                        ["value", x]
                 )
                 theory "Float with width 0 and 0 right decimal places" valuesF (fun x ->
-                    // String.Format ("{0,1:0.}", 42.5)
-                    // sprintf "%0.0f" 0.
                     (fun l -> logfi l "%0.0f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.}", x))
                         (sprintf "%0.0f" x)
+                        ["value", x]
                 )
                 theory "Float with 1 right decimal place" valuesF (fun x ->
                     (fun l -> logfi l "%.1f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.0}", x))
                         (sprintf "%0.1f" x)
+                        ["value", x]
                 )
                 theory "Float with 2 right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%.2f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.00}", x))
                         (sprintf "%.2f" x)
+                        ["value", x]
                 )
                 theory "Float with 10 right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%.10f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:0.0000000000}", x))
                         (sprintf "%.10f" x)
+                        ["value", x]
                 )
                 theory "Float with width of 1 and default number of right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%1f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,1:0.000000}", x))
                         (sprintf "%1f" x)
+                        ["value", x]
                 )
                 theory "Float with width of 2 and default number of right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%2f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,2:0.000000}", x))
                         (sprintf "%2f" x)
+                        ["value", x]
                 )
                 theory "Float with width of 10 and default number of right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%10f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,10:0.000000}", x))
                         (sprintf "%10f" x)
+                        ["value", x]
                 )
                 theory "Float with width of 2 and 3 right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%2.3f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value,2:0.000}", x))
                         (sprintf "%2.3f" x)
+                        ["value", x]
                 )
                 theory "Float with 0-padded width of 10 and 3 right decimal places" valuesF (fun x ->
                     // sprintf "%010.3f" 42.0
                     // String.Format("{0:000000.000}", 42.0)
                     (fun l -> logfi l "%010.3f{value}" x)
                     |> assertEquivalent
-                        (fun (l: ILogger<_>) -> l.LogInformation ("{value:000000.000}", x))
                         (sprintf "%010.3f" x)
+                        ["value", x]
                 )
                 theory "Float with + flag" valuesF (fun x ->
                     (fun l -> logfi l "%+2.3f{value}" x)
-                        |> assertEquivalentOutput (sprintf "%+2.3f" x)
+                    |> assertEquivalentOutput
+                        (sprintf "%+2.3f" x)
+                        ["value", x]
                 )
                 theory "Several interspersed format specifiers"
                     (caseData [
@@ -414,8 +419,8 @@ let allTests =
                     (fun (x,y,z) ->
                         (fun l -> logfi l "%4.1f{float}, %b{boolean}, %x{hex}" x y z)
                         |> assertEquivalent
-                            (fun l -> l.LogInformation ("{float,4:0.0}, {boolean}, {hex:x}", x, y, z))
                             (sprintf "%4.1f, %b, %x" x y z)
+                            ["float", x; "boolean", y; "hex", z]
                     )
             ]
         ]

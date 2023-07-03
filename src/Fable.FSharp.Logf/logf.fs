@@ -60,7 +60,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | Some lastArg -> msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
         | None -> ()
         lastArg <- None
-        System.Diagnostics.Debugger.Break ()
         match exn with
         | Some exn ->
             logger.Log(logLevel, exn, msgBuf.ToString (), args.ToArray ())
@@ -81,7 +80,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                     Some 1, Some 0
                 else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else Some 6)
             
-            System.Diagnostics.Debugger.Break ()
             match width, (printfSpec.Flags.HasFlag FormatFlags.PadWithZeros) with
             | Some w, false ->
                 sb.Append(',').Append(w) |> ignore
@@ -93,7 +91,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                     sb.Append '0' |> ignore
                 sb.Append '.' |> ignore
                 
-                System.Diagnostics.Debugger.Break ()
                 precision |> Option.iter (fun p ->
                     for _ in 0 .. p - 1 do
                         sb.Append '0' |> ignore)
