@@ -414,6 +414,16 @@ let allTests =
                             (sprintf "%4.1f, %b, %x" x y z)
                             ["float", x; "boolean", y; "hex", z]
                     )
+                theory "Exponential notation" valuesF (fun x ->
+                    (fun l -> logfi l "%e{value}" x)
+                    |> assertEquivalentM "little e"
+                        (sprintf "%e" x)
+                        ["value", x]
+                    (fun l -> logfi l "%E{value}" x)
+                    |> assertEquivalentM "big E"
+                        (sprintf "%E" x)
+                        ["value", x]
+                )
             ]
         ]
         testList "SharedTests" [

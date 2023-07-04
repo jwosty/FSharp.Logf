@@ -71,6 +71,8 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         match printfSpec.TypeChar with
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
+        | 'e' -> Some ":0.000000e+000"
+        | 'E' -> Some ":0.000000E+000"    
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
             let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
             
