@@ -72,7 +72,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
         | 'e' -> Some ":0.000000e+000"
-        | 'E' -> Some ":0.000000E+000"    
+        | 'E' -> Some ":0.000000E+000"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
             let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
             
@@ -89,7 +89,8 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 ()
             
             let buildSection w =
-                for _ in 0 .. w - 1 do
+                let w = max w 1
+                for _ in 0 .. (w - 1) do
                     sb.Append '0' |> ignore
                 sb.Append '.' |> ignore
                 
@@ -114,6 +115,12 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 sb.Append ";-" |> ignore
             
             buildSection (w - 1)
+            
+            // Work around https://github.com/dotnet/fsharp/issues/15557 by printing both +0 and -0 as +0. Better than
+            // getting -+0.
+            if printfSpec.Flags = FormatFlags.PlusForPositives then
+                sb.Append ";+" |> ignore
+                buildSection w
             
             Some (sb.ToString())
         | _ -> None
