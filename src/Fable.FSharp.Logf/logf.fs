@@ -65,6 +65,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             logger.Log(logLevel, exn, msgBuf.ToString (), args.ToArray ())
         | None ->
             logger.Log(logLevel, msgBuf.ToString (), args.ToArray ())
+
         Unchecked.defaultof<'Unit>
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
@@ -79,8 +80,10 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             let width, precision =
                 if not printfSpec.IsWidthSpecified && printfSpec.Precision = 0 then
                     // special case for %0.0f
-                    Some 1, Some 0
-                else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then Some printfSpec.Precision else Some 6)
+                    Some 1, 0
+                else (if printfSpec.IsWidthSpecified then Some printfSpec.Width else None), (if printfSpec.IsPrecisionSpecified then printfSpec.Precision else 6)
+            
+            let p = precision
             
             match width, (printfSpec.Flags.HasFlag FormatFlags.PadWithZeros) with
             | Some w, false ->
@@ -91,46 +94,46 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             | _ ->
                 ()
             
-            let buildSection w =
-                let w = max w 1
-                for _ in 0 .. (w - 1) do
+            let buildSection lpadZeros =
+                System.Diagnostics.Debugger.Break ()
+                let lpadZeros = max lpadZeros 1
+                for _ in 0 .. (lpadZeros - 1) do
                     sb.Append '0' |> ignore
                 sb.Append '.' |> ignore
                 
-                precision |> Option.iter (fun p ->
-                    for _ in 0 .. p - 1 do
-                        sb.Append '0' |> ignore)
+                for _ in 0 .. p - 1 do
+                    sb.Append '0' |> ignore
             
-            let w =
+            let lpadZeros =
                 match width, printfSpec.Flags.HasFlag FormatFlags.PadWithZeros, precision with
-                | Some w, true, Some p -> w - p - 1 |> max 1
-                | Some w, true, None -> w |> max 1
+                | Some w, true, p -> w - p - 1 |> max 1
                 | _ -> 1
             
+            // space and plus are mutually exclusive; trying to use both gives a compile error
             if printfSpec.Flags.HasFlag FormatFlags.PlusForPositives then
                 sb.Append ":+" |> ignore
-                buildSection w
+                buildSection (lpadZeros - 1)
                 sb.Append ";-" |> ignore
             elif printfSpec.Flags.HasFlag FormatFlags.SpaceForPositives then
                 sb.Append ": " |> ignore
-                buildSection w
+                buildSection (lpadZeros - 1)
                 sb.Append ";-" |> ignore
             else
                 sb.Append ':' |> ignore
-                buildSection w
+                buildSection lpadZeros
                 sb.Append ";-" |> ignore
             
-            buildSection (w - 1)
+            buildSection (lpadZeros - 1)
             
             // Work around https://github.com/dotnet/fsharp/issues/15557 by printing both +0 and -0 as +0. Better than
             // getting -+0.
             if printfSpec.Flags = FormatFlags.PlusForPositives then
                 sb.Append ";+" |> ignore
-                buildSection w
+                buildSection lpadZeros
             // Similar workaround as above
-            if printfSpec.Flags = FormatFlags.SpaceForPositives then
+            elif printfSpec.Flags = FormatFlags.SpaceForPositives then
                 sb.Append "; " |> ignore
-                buildSection w
+                buildSection lpadZeros
             
             Some (sb.ToString())
         | _ -> None

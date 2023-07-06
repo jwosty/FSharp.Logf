@@ -413,10 +413,12 @@ let allTests =
                     // Due to bug #1, don't compare against the equivalent sprintf call (so we can fix it ourselves)
                     // We can work around bug #2 by just defining all zero values to print with a + for the sign,
                     // even if it's a lie, because that is better than getting both symbols
-                    
-                    (fun l -> logfi l "%+2.3f{value}" x)
+                    // {value,12:+0.000;-0.000;+0.000}
+                    // {value,12:+0.000;-0.000;+0.000}
+
+                    (fun l -> logfi l "%+12.3f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZero (Math.Round (x,3)) then "+0.000" else sprintf "%+2.3f" x)
+                        (if isNegativeZero (Math.Round (x,3)) then "      +0.000" else sprintf "%+12.3f" x)
                         ["value", x]
                 )
                 theory "Float with - flag" valuesF (fun x ->
@@ -429,6 +431,18 @@ let allTests =
                     (fun l -> logfi l "% 7.1f{value}" x)
                     |> assertEquivalent
                         (if isNegativeZero (Math.Round (x,3)) then "    0.0" else sprintf "% 7.1f" x)
+                        ["value", x]
+                )
+                theory "Float with +0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                    (fun l -> logfi l "%+08.1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%+08.1f" x)
+                        ["value", x]
+                )
+                theory "Float with space and 0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                    (fun l -> logfi l "% 08.1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "% 08.1f" x)
                         ["value", x]
                 )
                 theory "Several interspersed format specifiers"
@@ -577,7 +591,7 @@ let allTests =
                     logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
-                        { emptyLogLine with message = "{xyz:0.000;-0.000} {abc:+000.000000;-00.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                        { emptyLogLine with message = "{xyz:0.000;-0.000} {abc:+00.000000;-00.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
