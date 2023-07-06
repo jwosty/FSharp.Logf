@@ -121,30 +121,26 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 | _ -> 1
             
             // space and plus are mutually exclusive; trying to use both gives a compile error
-            if flags.HasFlag FormatFlags.PlusForPositives then
-                sb.Append ":+" |> ignore
-                buildSection (lpadZeros - 1)
-                sb.Append ";-" |> ignore
-            elif flags.HasFlag FormatFlags.SpaceForPositives then
-                sb.Append ": " |> ignore
-                buildSection (lpadZeros - 1)
-                sb.Append ";-" |> ignore
-            else
-                sb.Append ':' |> ignore
-                buildSection lpadZeros
-                sb.Append ";-" |> ignore
+            let posSign =
+                if flags.HasFlag FormatFlags.PlusForPositives then Some '+'
+                elif flags.HasFlag FormatFlags.SpaceForPositives then Some ' '
+                else None
+            
+            sb.Append ":" |> ignore
+            posSign |> Option.iter (sb.Append >> ignore)
+            buildSection (if Option.isSome posSign then lpadZeros - 1 else lpadZeros)
+            sb.Append ";-" |> ignore
             
             buildSection (lpadZeros - 1)
             
-            // Work around https://github.com/dotnet/fsharp/issues/15557 by printing both +0 and -0 as +0. Better than
+            // Work around https://github.com/dotnet/runtime/issues/70460 by printing both +0 and -0 as +0. Better than
             // getting -+0.
-            if flags = FormatFlags.PlusForPositives then
-                sb.Append ";+" |> ignore
-                buildSection lpadZeros
-            // Similar workaround as above
-            elif flags = FormatFlags.SpaceForPositives then
-                sb.Append "; " |> ignore
-                buildSection lpadZeros
+            match posSign with
+            | Some s ->
+                sb.Append ";" |> ignore
+                sb.Append s |> ignore
+                buildSection (lpadZeros - 1)
+            | None -> ()
             
             Some (sb.ToString())
         | _ -> None

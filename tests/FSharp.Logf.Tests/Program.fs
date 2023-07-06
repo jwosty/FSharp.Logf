@@ -605,7 +605,7 @@ let allTests =
                     logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
-                        { emptyLogLine with message = "{xyz,-2:0.000;-0.000} {abc,-10:+0.000000;-0.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                        { emptyLogLine with message = "{xyz,-2:0.000;-0.000} {abc,-10:+0.000000;-0.000000;+0.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
