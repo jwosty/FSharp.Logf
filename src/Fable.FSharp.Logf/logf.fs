@@ -84,7 +84,10 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             
             match width, (printfSpec.Flags.HasFlag FormatFlags.PadWithZeros) with
             | Some w, false ->
-                sb.Append(',').Append(w) |> ignore
+                sb.Append ',' |> ignore
+                if (printfSpec.Flags.HasFlag FormatFlags.LeftJustify) then
+                    sb.Append '-' |> ignore
+                sb.Append w |> ignore
             | _ ->
                 ()
             

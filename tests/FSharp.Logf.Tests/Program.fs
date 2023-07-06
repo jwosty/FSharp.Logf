@@ -419,6 +419,12 @@ let allTests =
                         (if isNegativeZero (Math.Round (x,3)) then "+0.000" else sprintf "%+2.3f" x)
                         ["value", x]
                 )
+                theory "Float with - flag" valuesF (fun x ->
+                    (fun l -> logfi l "%-10.2f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%-10.2f" x)
+                        ["value", x]
+                )
                 theory "Several interspersed format specifiers"
                     (caseData [
                         42.59, false, 0xcafebabe
