@@ -149,6 +149,12 @@ let theoryAssertEquivalent name values logfCall expectedRenderedMsg expectedLogA
             )
     ]
 
+let ftheory name (cases: (string * 'a) list) testCode =
+    testList name [
+        for name, value in cases ->
+            ftestCase (sprintf "(%s)" name) (fun () -> testCode value)
+    ]
+
 let theory name (cases: (string * 'a) list) testCode =
     testList name [
         for name, value in cases ->
@@ -160,6 +166,13 @@ let caseData (values: 'a list) = values |> List.map (fun x -> string x, x)
 let isNegativeZero x = x = 0. && Double.IsNegativeInfinity (1. / x)
 let isNegativeZeroLike (precision: int) (x: float) = Math.Round (x, precision) |> isNegativeZero
 let isZeroLike (precision: int) (x: float) = Math.Round (x, precision) = 0.0
+
+let isFable =
+#if FABLE_COMPILER
+    true
+#else
+    false
+#endif
 
 // TODO:
 //  * Property tests would be great here (unit tests couldn't completely go away though as FsCheck doesn't work under Fable)
@@ -405,7 +418,7 @@ let allTests =
                     (fun l -> logfi l "%010.3f{value}" x)
                     |> assertEquivalent
                         // Work around printf bug for -0.0: https://github.com/dotnet/fsharp/issues/15558
-                        (if isNegativeZero x then "-000000.000" else sprintf "%010.3f" x)
+                        (if isNegativeZero x && not isFable then "-000000.000" else sprintf "%010.3f" x)
                         ["value", x]
                 )
                 theory "Float with + flag" valuesF (fun x ->
@@ -423,7 +436,7 @@ let allTests =
 
                     (fun l -> logfi l "%+12.3f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZero (Math.Round (x,3)) then "      +0.000" else sprintf "%+12.3f" x)
+                        (if isNegativeZero (Math.Round (x,3)) && not isFable then "      +0.000" else sprintf "%+12.3f" x)
                         ["value", x]
                 )
                 theory "Float with - flag" valuesF (fun x ->
@@ -435,25 +448,25 @@ let allTests =
                 theory "Float with space flag" valuesF (fun x ->
                     (fun l -> logfi l "% 7.1f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZero (Math.Round (x,3)) then "    0.0" else sprintf "% 7.1f" x)
+                        (if isNegativeZero (Math.Round (x,3)) && not isFable then "    0.0" else sprintf "% 7.1f" x)
                         ["value", x]
                 )
                 theory "Float with +0 flags" valuesF (fun x ->
                     (fun l -> logfi l "%+08.1f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZeroLike 3 x then "+00000.0" else sprintf "%+08.1f" x)
+                        (if isNegativeZeroLike 3 x && not isFable then "+00000.0" else sprintf "%+08.1f" x)
                         ["value", x]
                 )
                 theory "Float with space and 0 flags" valuesF (fun x ->
                     (fun l -> logfi l "% 08.1f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZeroLike 1 x then " 00000.0" else sprintf "% 08.1f" x)
+                        (if isNegativeZeroLike 1 x && not isFable then " 00000.0" else sprintf "% 08.1f" x)
                         ["value", x]
                 )
                 theory "Float with -+ flags" valuesF (fun x ->
                     (fun l -> logfi l "%-+8.1f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZeroLike 1 x then "+0.0    " else sprintf "%-+8.1f" x)
+                        (if isNegativeZeroLike 1 x && not isFable then "+0.0    " else sprintf "%-+8.1f" x)
                         ["value", x]
                 )
                 theory "Float with -0 flags" valuesF (fun x ->
@@ -461,7 +474,7 @@ let allTests =
                     // so just define it to be next closest thing (left-justified, padded with spaces)
                     (fun l -> logfi l "%-08.1f{value}" x)
                     |> assertEquivalent
-                        (if isNegativeZeroLike 1 x then "-0.0    " else sprintf "%-8.1f" x)
+                        (if isNegativeZeroLike 1 x && not isFable then "-0.0    " else sprintf "%-8.1f" x)
                         ["value", x]
                 )
                 theory "Several interspersed format specifiers"
