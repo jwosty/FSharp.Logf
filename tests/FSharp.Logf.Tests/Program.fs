@@ -425,6 +425,12 @@ let allTests =
                         (sprintf "%-10.2f" x)
                         ["value", x]
                 )
+                theory "Float with space flag" valuesF (fun x ->
+                    (fun l -> logfi l "% 7.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZero (Math.Round (x,3)) then "    0.0" else sprintf "% 7.1f" x)
+                        ["value", x]
+                )
                 theory "Several interspersed format specifiers"
                     (caseData [
                         42.59, false, 0xcafebabe
@@ -571,7 +577,7 @@ let allTests =
                     logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
-                        { emptyLogLine with message = "{xyz:0.000;-0.000} {abc:000.000000;-00.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                        { emptyLogLine with message = "{xyz:0.000;-0.000} {abc:+000.000000;-00.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }

@@ -25,7 +25,7 @@ open Fable.Microsoft.Extensions.Logging
 // filing an issue would be great!  
 let printfFmtSpecPattern =
     """%"""
-    + """(0|-|\+)*"""   // flags
+    + """(0|-|\+| )*"""   // flags
     + """[0-9]*"""      // width
     + """(\.\d+)?"""    // precision
     + """[a-zA-Z]"""    // type
@@ -107,12 +107,15 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 | Some w, true, None -> w |> max 1
                 | _ -> 1
             
-            match printfSpec.Flags with
-            | FormatFlags.PlusForPositives ->
+            if printfSpec.Flags.HasFlag FormatFlags.PlusForPositives then
                 sb.Append ":+" |> ignore
                 buildSection w
                 sb.Append ";-" |> ignore
-            | _ ->
+            elif printfSpec.Flags.HasFlag FormatFlags.SpaceForPositives then
+                sb.Append ": " |> ignore
+                buildSection w
+                sb.Append ";-" |> ignore
+            else
                 sb.Append ':' |> ignore
                 buildSection w
                 sb.Append ";-" |> ignore
@@ -123,6 +126,10 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             // getting -+0.
             if printfSpec.Flags = FormatFlags.PlusForPositives then
                 sb.Append ";+" |> ignore
+                buildSection w
+            // Similar workaround as above
+            if printfSpec.Flags = FormatFlags.SpaceForPositives then
+                sb.Append "; " |> ignore
                 buildSection w
             
             Some (sb.ToString())
