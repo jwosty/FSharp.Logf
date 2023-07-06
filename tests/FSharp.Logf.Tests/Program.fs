@@ -161,6 +161,11 @@ let isNegativeZero x = x = 0. && Double.IsNegativeInfinity (1. / x)
 let isNegativeZeroLike (precision: int) (x: float) = Math.Round (x, precision) |> isNegativeZero
 let isZeroLike (precision: int) (x: float) = Math.Round (x, precision) = 0.0
 
+// TODO:
+//  * Property tests would be great here (unit tests couldn't completely go away though as FsCheck doesn't work under Fable)
+//  * A property test holding that the format string is only dependent on the printf format specs and not the particular
+//      args passed in, would be good to to have. This would prove that caching the format string is indeed sound.
+
 [<Tests>]
 let allTests =
     testList "FSharp_Logf_sln" [
@@ -433,30 +438,30 @@ let allTests =
                         (if isNegativeZero (Math.Round (x,3)) then "    0.0" else sprintf "% 7.1f" x)
                         ["value", x]
                 )
-                theory "Float with +0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                theory "Float with +0 flags" valuesF (fun x ->
                     (fun l -> logfi l "%+08.1f{value}" x)
                     |> assertEquivalent
-                        (sprintf "%+08.1f" x)
+                        (if isNegativeZeroLike 3 x then "+00000.0" else sprintf "%+08.1f" x)
                         ["value", x]
                 )
-                theory "Float with space and 0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                theory "Float with space and 0 flags" valuesF (fun x ->
                     (fun l -> logfi l "% 08.1f{value}" x)
                     |> assertEquivalent
-                        (sprintf "% 08.1f" x)
+                        (if isNegativeZeroLike 1 x then " 00000.0" else sprintf "% 08.1f" x)
                         ["value", x]
                 )
-                theory "Float with -+ flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                theory "Float with -+ flags" valuesF (fun x ->
                     (fun l -> logfi l "%-+8.1f{value}" x)
                     |> assertEquivalent
-                        (sprintf "%-+8.1f" x)
+                        (if isNegativeZeroLike 1 x then "+0.0    " else sprintf "%-+8.1f" x)
                         ["value", x]
                 )
-                theory "Float with -0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                theory "Float with -0 flags" valuesF (fun x ->
                     // It's impossible get a left-justified, zero-padded number using .NET custom format specifiers,
                     // so just define it to be next closest thing (left-justified, padded with spaces)
                     (fun l -> logfi l "%-08.1f{value}" x)
                     |> assertEquivalent
-                        (sprintf "%-8.1f" x)
+                        (if isNegativeZeroLike 1 x then "-0.0    " else sprintf "%-8.1f" x)
                         ["value", x]
                 )
                 theory "Several interspersed format specifiers"

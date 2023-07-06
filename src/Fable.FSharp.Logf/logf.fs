@@ -85,7 +85,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | 'e' -> Some ":0.000000e+000"
         | 'E' -> Some ":0.000000E+000"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
-            
             let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
             
             let width, precision =
@@ -126,18 +125,18 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                 elif flags.HasFlag FormatFlags.SpaceForPositives then Some ' '
                 else None
             
-            sb.Append ":" |> ignore
+            sb.Append ':' |> ignore
             posSign |> Option.iter (sb.Append >> ignore)
             buildSection (if Option.isSome posSign then lpadZeros - 1 else lpadZeros)
-            sb.Append ";-" |> ignore
             
+            sb.Append ";-" |> ignore
             buildSection (lpadZeros - 1)
             
-            // Work around https://github.com/dotnet/runtime/issues/70460 by printing both +0 and -0 as +0. Better than
-            // getting -+0.
+            // Work around https://github.com/dotnet/runtime/issues/70460 by printing both +0.0 and -0.0 as +0 (and
+            // similarly for SpaceForPositives). Better than getting -+0.
             match posSign with
             | Some s ->
-                sb.Append ";" |> ignore
+                sb.Append ';' |> ignore
                 sb.Append s |> ignore
                 buildSection (lpadZeros - 1)
             | None -> ()
