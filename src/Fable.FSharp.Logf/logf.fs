@@ -65,16 +65,27 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             logger.Log(logLevel, exn, msgBuf.ToString (), args.ToArray ())
         | None ->
             logger.Log(logLevel, msgBuf.ToString (), args.ToArray ())
-
+        
         Unchecked.defaultof<'Unit>
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
+        let flags = printfSpec.Flags
+        let flags =
+            // .NET format specifiers have no way to left-justify (aka right-pad) with zeros; spaces are hardcoded
+            // as the padding character. Do the next best thing instead, which is to left-justify with spaces.
+            // Right-justify with zeros is possible because we can use format strings like {arg:000.0} to pad to 5
+            // chars. The reason the same approach doesn't work for left-justify with zeros is left as an exercise for
+            // the reader
+            if flags.HasFlag FormatFlags.LeftJustify && flags.HasFlag FormatFlags.PadWithZeros then
+                flags &&& ~~~FormatFlags.PadWithZeros
+            else flags
         match printfSpec.TypeChar with
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
         | 'e' -> Some ":0.000000e+000"
         | 'E' -> Some ":0.000000E+000"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
+            
             let sb = StringBuilder(1 + (max 0 printfSpec.Width) + (max 0 printfSpec.Precision))
             
             let width, precision =
@@ -85,10 +96,10 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             
             let p = precision
             
-            match width, (printfSpec.Flags.HasFlag FormatFlags.PadWithZeros) with
+            match width, (flags.HasFlag FormatFlags.PadWithZeros) with
             | Some w, false ->
                 sb.Append ',' |> ignore
-                if (printfSpec.Flags.HasFlag FormatFlags.LeftJustify) then
+                if (flags.HasFlag FormatFlags.LeftJustify) then
                     sb.Append '-' |> ignore
                 sb.Append w |> ignore
             | _ ->
@@ -105,16 +116,16 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
                     sb.Append '0' |> ignore
             
             let lpadZeros =
-                match width, printfSpec.Flags.HasFlag FormatFlags.PadWithZeros, precision with
+                match width, flags.HasFlag FormatFlags.PadWithZeros, precision with
                 | Some w, true, p -> w - p - 1 |> max 1
                 | _ -> 1
             
             // space and plus are mutually exclusive; trying to use both gives a compile error
-            if printfSpec.Flags.HasFlag FormatFlags.PlusForPositives then
+            if flags.HasFlag FormatFlags.PlusForPositives then
                 sb.Append ":+" |> ignore
                 buildSection (lpadZeros - 1)
                 sb.Append ";-" |> ignore
-            elif printfSpec.Flags.HasFlag FormatFlags.SpaceForPositives then
+            elif flags.HasFlag FormatFlags.SpaceForPositives then
                 sb.Append ": " |> ignore
                 buildSection (lpadZeros - 1)
                 sb.Append ";-" |> ignore
@@ -127,11 +138,11 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             
             // Work around https://github.com/dotnet/fsharp/issues/15557 by printing both +0 and -0 as +0. Better than
             // getting -+0.
-            if printfSpec.Flags = FormatFlags.PlusForPositives then
+            if flags = FormatFlags.PlusForPositives then
                 sb.Append ";+" |> ignore
                 buildSection lpadZeros
             // Similar workaround as above
-            elif printfSpec.Flags = FormatFlags.SpaceForPositives then
+            elif flags = FormatFlags.SpaceForPositives then
                 sb.Append "; " |> ignore
                 buildSection lpadZeros
             

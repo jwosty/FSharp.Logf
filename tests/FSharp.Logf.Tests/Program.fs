@@ -445,6 +445,20 @@ let allTests =
                         (sprintf "% 08.1f" x)
                         ["value", x]
                 )
+                theory "Float with -+ flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                    (fun l -> logfi l "%-+8.1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%-+8.1f" x)
+                        ["value", x]
+                )
+                theory "Float with -0 flags" (valuesF |> List.filter (snd >> isNegativeZeroLike 1 >> not)) (fun x ->
+                    // It's impossible get a left-justified, zero-padded number using .NET custom format specifiers,
+                    // so just define it to be next closest thing (left-justified, padded with spaces)
+                    (fun l -> logfi l "%-08.1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%-8.1f" x)
+                        ["value", x]
+                )
                 theory "Several interspersed format specifiers"
                     (caseData [
                         42.59, false, 0xcafebabe
@@ -591,7 +605,7 @@ let allTests =
                     logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
                     l.LastLine |> Expect.equal "Log lines"
-                        { emptyLogLine with message = "{xyz:0.000;-0.000} {abc:+00.000000;-00.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                        { emptyLogLine with message = "{xyz,-2:0.000;-0.000} {abc,-10:+0.000000;-0.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
                     l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
