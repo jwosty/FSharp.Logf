@@ -23,6 +23,7 @@ module FSharp.Logf
 #else
 module Fable.FSharp.Logf
 #endif
+open FSharp.Core.Printf
 open System
 open System.Text
 open System.Text.RegularExpressions
@@ -31,6 +32,15 @@ open Microsoft.Extensions.Logging
 #else
 open Fable.Microsoft.Extensions.Logging
 #endif
+
+/// <summary>
+///     Formatted <see cref="T:Microsoft.Extensions.Logging.ILogger"/> compatible printing, using a given 'final'
+///     function perform the log call and generate the result.
+/// </summary>
+/// <param name="continuation">The function called after formatting translation to generate the formatted log result.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val klogf : continuation: (string -> obj[] -> 'Result) -> format: StringFormat<'T, 'Result> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at the specified
