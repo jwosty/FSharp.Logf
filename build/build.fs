@@ -144,9 +144,10 @@ let PublishNugetPackages _ =
     // Trace.logfn $"NUGET_SOURCE_URL = %s{nugetPushSource}"
     
     for pkg in !!(Folder.artifacts </> "*.nupkg") ++(Folder.artifacts </> "*.snupkg") do
+        if Option.isNone nugetPushApiKey then
+            Trace.traceImportant "Nuget API key not specified. Pushing package may fail."
         Trace.logfn $"Pushing %s{pkg} to %s{nugetPushSource}"
         DotNet.nugetPush (fun npo -> { npo with PushParams = { npo.PushParams with Source = Some nugetPushSource; ApiKey = nugetPushApiKey } }) pkg
-        
     
     ()
 
