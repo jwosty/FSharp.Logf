@@ -101,7 +101,6 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
                 ()
             
             let buildSection lpadZeros =
-                System.Diagnostics.Debugger.Break ()
                 let lpadZeros = max lpadZeros 1
                 for _ in 0 .. (lpadZeros - 1) do
                     sb.Append '0' |> ignore
