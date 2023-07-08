@@ -3,6 +3,7 @@ module FSharp.Logf
 #else
 module Fable.FSharp.Logf
 #endif
+open FSharp.Core.Printf
 open System
 open System.Text
 open System.Text.RegularExpressions
@@ -44,8 +45,9 @@ let netMsgHolePattern =
     + """)"""
 
 #if DOTNET_LIB
-type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exception) =
-    inherit PrintfEnv<unit, string, 'Unit>()
+// type private LogfEnv<'Result>(continuation: (LogLevel -> EventId option * Exception option * string * obj[] -> 'Result), logger: ILogger, logLevel: LogLevel, eventId: EventId option, exn: Exception option) =
+type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
+    inherit PrintfEnv<unit, string, 'Result>()
     let msgBuf = StringBuilder()
     let mutable lastArg : PrintableElement option = None
     static let logFormatSpecifierRegex = Regex("\A" + netMsgHolePattern)
@@ -60,13 +62,7 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
         | Some lastArg -> msgBuf.Append (lastArg.FormatAsPrintF ()) |> ignore
         | None -> ()
         lastArg <- None
-        match exn with
-        | Some exn ->
-            logger.Log(logLevel, exn, msgBuf.ToString (), args.ToArray ())
-        | None ->
-            logger.Log(logLevel, msgBuf.ToString (), args.ToArray ())
-        
-        Unchecked.defaultof<'Unit>
+        continuation (msgBuf.ToString ()) (args.ToArray ())
     
     member this.TryTranslatePrintfSpecToNetFormatSpec (printfSpec: FormatSpecifier) =
         let flags = printfSpec.Flags
@@ -192,9 +188,6 @@ type private LogfEnvParent<'Unit>(logger: ILogger, logLevel: LogLevel, ?exn: Exc
             .Append('}') |> ignore
         args.Add s
 
-type private LogfEnv(logger, logLevel, ?exn) =
-    inherit LogfEnvParent<unit>(logger, logLevel, ?exn = exn)
-
 // This regex matches either a valid format specifier (i.e. things like "%s{foo}"), and also matches lone curly braces.
 // Valid format specifiers will be captured by the named capture group "a", and lone curly braces will be captured
 // by the named capture group "b". Later, using the replacement pattern "${a}${b}${b}" causes any occurrences of "a"
@@ -210,14 +203,21 @@ type private LogfEnv(logger, logLevel, ?exn) =
 //      * Output: foo{{bar}}
 let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + netMsgHolePattern + """)|(?<b>[\{\}])""")
 
-let escapeUnpairedBrackets (format: Format<'T, unit, string, unit>) =
+let escapeUnpairedBrackets (format: Format<'Printer, 'State, 'Residue, 'Result>) =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
-    Format<'T, unit, string, unit>(fmtValue')
+    Format<'Printer, 'State, 'Residue, 'Result>(fmtValue')
 
-let logf logger logLevel format =
-    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel))
-let elogf logger logLevel exn format =
-    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(logger, logLevel, exn))
+let klogf (continuation: string -> obj[] -> 'Result) (format: StringFormat<'T, 'Result>) =
+    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(continuation))
+
+let logf (logger: ILogger) logLevel format =
+    klogf (fun msg args -> logger.Log(logLevel, msg, args)) format
+    
+let vlogf (logger: ILogger) (logLevel: LogLevel) (eventId: EventId) (exn: Exception) format =
+    klogf (fun msg args -> logger.Log (logLevel, eventId, exn, msg, args)) format
+
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) format =
+    klogf (fun msg args -> logger.Log(logLevel, exn, msg, args)) format
 
 #else
 
@@ -235,7 +235,7 @@ let logMsgParamNameRegex =
 
 // Scans through a format literal (the first parameter to a printf-style function), removing parameter names (i.e.
 // changing "%s{foo}" to "%s", and collecting all custom .Net-style formatters (i.e. from "%f{foo:#.#}" we grab ":#.#")
-let processLogMsgParams (format: Format<'T, unit, string, unit>) : string option list * Format<'T, unit, string, unit> =
+let processLogMsgParams (format: Format<'Printer, 'State, 'Residue, 'Result>) : string option list * Format<'Printer, 'State, 'Residue, 'Result> =
     let paramReplacementFmt = System.Collections.Generic.List<string option>()
     let result: string =
         logMsgParamNameRegex.Replace (format.Value, (fun m ->
@@ -249,7 +249,7 @@ let processLogMsgParams (format: Format<'T, unit, string, unit>) : string option
         ))
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
     // (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
-    Seq.toList paramReplacementFmt, (new Format<'T, unit, string, unit>(result))
+    Seq.toList paramReplacementFmt, (new Format<'Printer, 'State, 'Residue, 'Result>(result))
 
 // Takes a list of .Net custom formatters (like ":#.#"), and a constructed printf function, and constructs a new
 // function (wrapping around the printf function) but which applies these custom formatters to the appropriate
@@ -274,34 +274,44 @@ let rec mapReplacementsDynamic (fmts: string option list) (f: obj) : obj =
     | [] ->
         f
 
-let klogf f (format: Format<'T, unit, string, unit>) : 'T =
+let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, string, 'Result>) : 'T =
     let replacements, processedFmt = processLogMsgParams format
     let f =
-        Printf.ksprintf f processedFmt
+        Printf.ksprintf (fun msg -> continuation msg [||]) processedFmt
         |> unbox<'T>
     let f' = mapReplacementsDynamic replacements f
     f' |> unbox<'T>
 
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
-let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) : 'T =
+let logf (logger: ILogger) logLevel (format: StringFormat<'T, unit>) : 'T =
     klogf
-        (fun x -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> x)))
+        (fun msg _ -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> msg)))
         format
-let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) : 'T =
+        
+let vlogf (logger: ILogger) (logLevel: LogLevel) (eventId: EventId) (exn: Exception) format =
+    klogf (fun msg args -> logger.Log (logLevel, eventId, null, exn, Func<_,_,_>(fun _ _ -> msg))) format
+        
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: StringFormat<'T, unit>) : 'T =
     klogf
-        (fun x -> logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> x)))
+        (fun msg _ -> logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> msg)))
         format
 
 #endif
 
 let logft logger format = logf logger LogLevel.Trace format
+let vlogft logger eventId exn format = vlogf logger LogLevel.Trace eventId exn format
 let logfd logger format = logf logger LogLevel.Debug format
+let vlogfd logger eventId exn format = vlogf logger LogLevel.Debug eventId exn format
 let logfi logger format = logf logger LogLevel.Information format
+let vlogfi logger eventId exn format = vlogf logger LogLevel.Information eventId exn format
 let logfw logger format = logf logger LogLevel.Warning format
+let vlogfw logger eventId exn format = vlogf logger LogLevel.Warning eventId exn format
 let elogfw logger exn format = elogf logger LogLevel.Warning exn format
 let logfe logger format = logf logger LogLevel.Error format
+let vlogfe logger eventId exn format = vlogf logger LogLevel.Error eventId exn format
 let elogfe logger exn format = elogf logger LogLevel.Error exn format
 let logfc logger format = logf logger LogLevel.Critical format
+let vlogfc logger eventId exn format = vlogf logger LogLevel.Critical eventId exn format
 let elogfc logger exn format = elogf logger LogLevel.Critical exn format
 let logfn logger format = logf logger LogLevel.None format
