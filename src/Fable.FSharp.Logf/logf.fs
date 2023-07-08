@@ -212,6 +212,9 @@ let klogf (continuation: string -> obj[] -> 'Result) (format: StringFormat<'T, '
 
 let logf (logger: ILogger) logLevel format =
     klogf (fun msg args -> logger.Log(logLevel, msg, args)) format
+    
+let vlogf (logger: ILogger) (logLevel: LogLevel) (eventId: EventId) (exn: Exception) format =
+    klogf (fun msg args -> logger.Log (logLevel, eventId, exn, msg, args)) format
 
 let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) format =
     klogf (fun msg args -> logger.Log(logLevel, exn, msg, args)) format
@@ -281,11 +284,15 @@ let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, s
 
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
-let logf (logger: ILogger) logLevel (format: Format<'T, unit, string, unit>) : 'T =
+let logf (logger: ILogger) logLevel (format: StringFormat<'T, unit>) : 'T =
     klogf
         (fun msg _ -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> msg)))
         format
-let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Format<'T, unit, string, unit>) : 'T =
+        
+let vlogf (logger: ILogger) (logLevel: LogLevel) (eventId: EventId) (exn: Exception) format =
+    klogf (fun msg args -> logger.Log (logLevel, eventId, null, exn, Func<_,_,_>(fun _ _ -> msg))) format
+        
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: StringFormat<'T, unit>) : 'T =
     klogf
         (fun msg _ -> logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> msg)))
         format
@@ -293,12 +300,18 @@ let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: Forma
 #endif
 
 let logft logger format = logf logger LogLevel.Trace format
+let vlogft logger eventId exn format = vlogf logger LogLevel.Trace eventId exn format
 let logfd logger format = logf logger LogLevel.Debug format
+let vlogfd logger eventId exn format = vlogf logger LogLevel.Debug eventId exn format
 let logfi logger format = logf logger LogLevel.Information format
+let vlogfi logger eventId exn format = vlogf logger LogLevel.Information eventId exn format
 let logfw logger format = logf logger LogLevel.Warning format
+let vlogfw logger eventId exn format = vlogf logger LogLevel.Warning eventId exn format
 let elogfw logger exn format = elogf logger LogLevel.Warning exn format
 let logfe logger format = logf logger LogLevel.Error format
+let vlogfe logger eventId exn format = vlogf logger LogLevel.Error eventId exn format
 let elogfe logger exn format = elogf logger LogLevel.Error exn format
 let logfc logger format = logf logger LogLevel.Critical format
+let vlogfc logger eventId exn format = vlogf logger LogLevel.Critical eventId exn format
 let elogfc logger exn format = elogf logger LogLevel.Critical exn format
 let logfn logger format = logf logger LogLevel.None format

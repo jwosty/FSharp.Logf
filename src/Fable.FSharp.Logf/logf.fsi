@@ -25,6 +25,7 @@ module Fable.FSharp.Logf
 #endif
 open FSharp.Core.Printf
 open System
+open System.Collections.Generic
 open System.Text
 open System.Text.RegularExpressions
 #if DOTNET_LIB
@@ -50,18 +51,29 @@ val klogf : continuation: (string -> obj[] -> 'Result) -> format: StringFormat<'
 /// <param name="logLevel">The LogLevel to use.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val logf : logger: ILogger -> logLevel: LogLevel -> format: Format<'T, unit, string, unit> -> 'T
+val logf : logger: ILogger -> logLevel: LogLevel -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logf" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="logLevel">The LogLevel to use.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogf : logger: ILogger -> logLevel: LogLevel -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted error printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at the specified
-///     <see cref="T:Microsoft.Extensions.Logging.LogLevel"/>.
+///     <see cref="T:Microsoft.Extensions.Logging.LogLevel"/> 
 /// </summary>
 /// <param name="logger">The logger to output to.</param>
 /// <param name="logLevel">The LogLevel to use.</param>
 /// <param name="exn">The exception to include in the message.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val elogf : logger: ILogger -> logLevel: LogLevel -> exn: Exception -> format: Format<'T, unit, string, unit> -> 'T
+val elogf : logger: ILogger -> logLevel: LogLevel -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Trace level.
@@ -72,12 +84,32 @@ val elogf : logger: ILogger -> logLevel: LogLevel -> exn: Exception -> format: F
 val logft : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
 
 /// <summary>
+///     Like <see cref="logft" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogft : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Debug level.
 /// </summary>
 /// <param name="logger">The logger to output to.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val logfd : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
+val logfd : logger: ILogger -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logfd" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogfd : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Information level.
@@ -85,7 +117,17 @@ val logfd : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
 /// <param name="logger">The logger to output to.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val logfi : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
+val logfi : logger: ILogger -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logfi" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogfi : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Warning level.
@@ -93,15 +135,26 @@ val logfi : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
 /// <param name="logger">The logger to output to.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val logfw : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
+val logfw : logger: ILogger -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logfw" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogfw : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted error printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Warning level.
 /// </summary>
 /// <param name="logger">The logger to output to.</param>
+/// <param name="exn">The exception to log.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val elogfw : logger: ILogger -> exn: Exception -> format: Format<'T, unit, string, unit> -> 'T
+val elogfw : logger: ILogger -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Error level.
@@ -112,12 +165,23 @@ val elogfw : logger: ILogger -> exn: Exception -> format: Format<'T, unit, strin
 val logfe : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
 
 /// <summary>
-///     Formatted error printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Error level.
+///     Like <see cref="logfe" />, but with extra arguments for event id and exception.
 /// </summary>
 /// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val elogfe : logger: ILogger -> exn: Exception -> format: Format<'T, unit, string, unit> -> 'T
+val vlogfe : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logfe" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="exn">The exception to log.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val elogfe : logger: ILogger -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Critical level.
@@ -125,12 +189,23 @@ val elogfe : logger: ILogger -> exn: Exception -> format: Format<'T, unit, strin
 /// <param name="logger">The logger to output to.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val logfc : logger: ILogger -> format: Format<'T, unit, string, unit> -> 'T
+val logfc : logger: ILogger -> format: StringFormat<'T, unit> -> 'T
+
+/// <summary>
+///     Like <see cref="logfc" />, but with extra arguments for event id and exception.
+/// </summary>
+/// <param name="logger">The logger to output to.</param>
+/// <param name="eventId">The event id associated with the log.</param>
+/// <param name="exn">The exception to include in the message.</param>
+/// <param name="format">The input formatter.</param>
+/// <returns>The return type and arguments of the formatter.</returns>
+val vlogfc : logger: ILogger -> eventId: EventId -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
 
 /// <summary>
 ///     Formatted error printing to an <see cref="T:Microsoft.Extensions.Logging.ILogger"/> at Critical level.
 /// </summary>
 /// <param name="logger">The logger to output to.</param>
+/// <param name="exn">The exception to log.</param>
 /// <param name="format">The input formatter.</param>
 /// <returns>The return type and arguments of the formatter.</returns>
-val elogfc : logger: ILogger -> exn: Exception -> format: Format<'T, unit, string, unit> -> 'T
+val elogfc : logger: ILogger -> exn: Exception -> format: StringFormat<'T, unit> -> 'T
