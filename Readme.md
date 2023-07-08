@@ -51,9 +51,7 @@ Most commonly-used [``printf``-style format specifiers](https://learn.microsoft.
 logfi ml "Float formatting: %+10.1f{Value}" 42.5
 ```
 
-You can also use .NET-style formatting exactly as you would when using `ILogger#Log` directly:
-
-You can also use [.NET-style format strings](https://learn.microsoft.com/en-us/dotnet/standard/base-types/formatting-types) when needed:
+You can also use [.NET-style format strings](https://learn.microsoft.com/en-us/dotnet/standard/base-types/formatting-types) exactly as you would when using `ILogger#Log` directly:
 
 ```fsharp
 // Formats a float according to String.Format rules, exactly equivalent to:
