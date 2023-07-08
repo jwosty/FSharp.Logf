@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>Benchmark.Benchmarks-20230119-094334</title>
+<title>Benchmark.Benchmarks-20230708-143607</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -13,11 +13,11 @@
 </head>
 <body>
 <pre><code>
-BenchmarkDotNet=v0.13.3, OS=macOS Monterey 12.6 (21G115) [Darwin 21.6.0]
+BenchmarkDotNet=v0.13.5, OS=macOS Monterey 12.6 (21G115) [Darwin 21.6.0]
 Apple M1 Pro, 1 CPU, 10 logical and 10 physical cores
 .NET SDK=7.0.102
-  [Host]   : .NET 7.0.2 (7.0.222.60605), Arm64 RyuJIT AdvSIMD DEBUG
-  .NET 7.0 : .NET 7.0.2 (7.0.222.60605), Arm64 RyuJIT AdvSIMD
+  [Host]   : .NET 7.0.4 (7.0.423.11508), Arm64 RyuJIT AdvSIMD DEBUG
+  .NET 7.0 : .NET 7.0.4 (7.0.423.11508), Arm64 RyuJIT AdvSIMD
 </code></pre>
 <pre><code>Job=.NET 7.0  Runtime=.NET 7.0  InvocationCount=1  
 UnrollFactor=1  
@@ -26,28 +26,28 @@ UnrollFactor=1
 <table>
 <thead><tr><th>         Method</th><th>size</th><th>   provider</th><th> Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th>
 </tr>
-</thead><tbody><tr><td>NoParams</td><td>10000</td><td>NullLogger</td><td>123.4 &mu;s</td><td>2.42 &mu;s</td><td>4.43 &mu;s</td><td>122.4 &mu;s</td><td>1.00</td><td>0.00</td>
-</tr><tr><td>LogfNoParams</td><td>10000</td><td>NullLogger</td><td>13,417.9 &mu;s</td><td>264.00 &mu;s</td><td>343.28 &mu;s</td><td>13,430.4 &mu;s</td><td>107.97</td><td>6.02</td>
-</tr><tr><td>OneParam</td><td>10000</td><td>NullLogger</td><td>585.9 &mu;s</td><td>8.62 &mu;s</td><td>7.64 &mu;s</td><td>584.5 &mu;s</td><td>4.80</td><td>0.17</td>
-</tr><tr><td>LogfOneParam</td><td>10000</td><td>NullLogger</td><td>15,556.3 &mu;s</td><td>1,143.58 &mu;s</td><td>3,371.88 &mu;s</td><td>13,450.7 &mu;s</td><td>151.36</td><td>26.07</td>
-</tr><tr><td>TwoParams</td><td>10000</td><td>NullLogger</td><td>638.7 &mu;s</td><td>12.44 &mu;s</td><td>11.64 &mu;s</td><td>636.6 &mu;s</td><td>5.24</td><td>0.18</td>
-</tr><tr><td>LogfTwoParams</td><td>10000</td><td>NullLogger</td><td>18,695.5 &mu;s</td><td>1,396.10 &mu;s</td><td>4,116.43 &mu;s</td><td>16,300.2 &mu;s</td><td>180.13</td><td>35.22</td>
-</tr><tr><td>TwoParamsNoop</td><td>10000</td><td>NullLogger</td><td>635.1 &mu;s</td><td>4.56 &mu;s</td><td>3.56 &mu;s</td><td>632.9 &mu;s</td><td>5.20</td><td>0.19</td>
-</tr><tr><td>LogfTwoParamsNoop</td><td>10000</td><td>NullLogger</td><td>18,951.0 &mu;s</td><td>1,521.57 &mu;s</td><td>4,486.37 &mu;s</td><td>16,394.4 &mu;s</td><td>183.36</td><td>39.87</td>
-</tr><tr><td>TenParams</td><td>10000</td><td>NullLogger</td><td>646.6 &mu;s</td><td>12.68 &mu;s</td><td>14.60 &mu;s</td><td>645.0 &mu;s</td><td>5.23</td><td>0.28</td>
-</tr><tr><td>LogfTenParams</td><td>10000</td><td>NullLogger</td><td>19,119.2 &mu;s</td><td>1,513.73 &mu;s</td><td>4,463.26 &mu;s</td><td>16,515.6 &mu;s</td><td>185.71</td><td>38.49</td>
-</tr><tr><td>LogfTenParamsPercentA</td><td>10000</td><td>NullLogger</td><td>19,050.2 &mu;s</td><td>1,427.10 &mu;s</td><td>4,207.83 &mu;s</td><td>16,667.1 &mu;s</td><td>183.06</td><td>36.82</td>
-</tr><tr><td>NoParams</td><td>10000</td><td>SerilogFileLogger</td><td>26,658.4 &mu;s</td><td>514.25 &mu;s</td><td>1,212.14 &mu;s</td><td>26,448.1 &mu;s</td><td>1.00</td><td>0.00</td>
-</tr><tr><td>LogfNoParams</td><td>10000</td><td>SerilogFileLogger</td><td>36,615.5 &mu;s</td><td>347.45 &mu;s</td><td>669.41 &mu;s</td><td>36,498.0 &mu;s</td><td>1.37</td><td>0.06</td>
-</tr><tr><td>OneParam</td><td>10000</td><td>SerilogFileLogger</td><td>28,490.8 &mu;s</td><td>329.41 &mu;s</td><td>585.53 &mu;s</td><td>28,346.2 &mu;s</td><td>1.06</td><td>0.06</td>
-</tr><tr><td>LogfOneParam</td><td>10000</td><td>SerilogFileLogger</td><td>47,948.0 &mu;s</td><td>941.61 &mu;s</td><td>2,593.47 &mu;s</td><td>47,367.1 &mu;s</td><td>1.79</td><td>0.11</td>
-</tr><tr><td>TwoParams</td><td>10000</td><td>SerilogFileLogger</td><td>31,074.8 &mu;s</td><td>597.77 &mu;s</td><td>1,151.70 &mu;s</td><td>30,618.9 &mu;s</td><td>1.16</td><td>0.06</td>
-</tr><tr><td>LogfTwoParams</td><td>10000</td><td>SerilogFileLogger</td><td>52,581.7 &mu;s</td><td>920.23 &mu;s</td><td>1,750.83 &mu;s</td><td>52,077.8 &mu;s</td><td>1.96</td><td>0.10</td>
-</tr><tr><td>TwoParamsNoop</td><td>10000</td><td>SerilogFileLogger</td><td>749.3 &mu;s</td><td>12.56 &mu;s</td><td>11.75 &mu;s</td><td>750.2 &mu;s</td><td>0.03</td><td>0.00</td>
-</tr><tr><td>LogfTwoParamsNoop</td><td>10000</td><td>SerilogFileLogger</td><td>20,534.4 &mu;s</td><td>279.60 &mu;s</td><td>613.73 &mu;s</td><td>20,395.3 &mu;s</td><td>0.77</td><td>0.04</td>
-</tr><tr><td>TenParams</td><td>10000</td><td>SerilogFileLogger</td><td>31,775.0 &mu;s</td><td>634.57 &mu;s</td><td>1,789.82 &mu;s</td><td>31,391.3 &mu;s</td><td>1.20</td><td>0.08</td>
-</tr><tr><td>LogfTenParams</td><td>10000</td><td>SerilogFileLogger</td><td>56,729.2 &mu;s</td><td>1,318.58 &mu;s</td><td>3,609.60 &mu;s</td><td>55,770.3 &mu;s</td><td>2.15</td><td>0.14</td>
-</tr><tr><td>LogfTenParamsPercentA</td><td>10000</td><td>SerilogFileLogger</td><td>51,753.0 &mu;s</td><td>530.31 &mu;s</td><td>760.55 &mu;s</td><td>51,656.1 &mu;s</td><td>1.91</td><td>0.10</td>
+</thead><tbody><tr><td>NoParams</td><td>10000</td><td>NullLogger</td><td>122.0 &mu;s</td><td>1.59 &mu;s</td><td>1.33 &mu;s</td><td>122.3 &mu;s</td><td>1.00</td><td>0.00</td>
+</tr><tr><td>LogfNoParams</td><td>10000</td><td>NullLogger</td><td>2,073.9 &mu;s</td><td>40.49 &mu;s</td><td>64.22 &mu;s</td><td>2,066.9 &mu;s</td><td>17.23</td><td>0.59</td>
+</tr><tr><td>OneParam</td><td>10000</td><td>NullLogger</td><td>584.0 &mu;s</td><td>8.80 &mu;s</td><td>10.48 &mu;s</td><td>579.2 &mu;s</td><td>4.81</td><td>0.09</td>
+</tr><tr><td>LogfOneParam</td><td>10000</td><td>NullLogger</td><td>12,381.4 &mu;s</td><td>167.44 &mu;s</td><td>139.82 &mu;s</td><td>12,375.2 &mu;s</td><td>101.46</td><td>1.43</td>
+</tr><tr><td>TwoParams</td><td>10000</td><td>NullLogger</td><td>642.2 &mu;s</td><td>12.77 &mu;s</td><td>14.70 &mu;s</td><td>640.3 &mu;s</td><td>5.29</td><td>0.15</td>
+</tr><tr><td>LogfTwoParams</td><td>10000</td><td>NullLogger</td><td>14,343.1 &mu;s</td><td>143.47 &mu;s</td><td>305.74 &mu;s</td><td>14,281.5 &mu;s</td><td>118.72</td><td>3.42</td>
+</tr><tr><td>TwoParamsNoop</td><td>10000</td><td>NullLogger</td><td>643.6 &mu;s</td><td>12.56 &mu;s</td><td>12.33 &mu;s</td><td>642.2 &mu;s</td><td>5.29</td><td>0.12</td>
+</tr><tr><td>LogfTwoParamsNoop</td><td>10000</td><td>NullLogger</td><td>15,760.4 &mu;s</td><td>821.98 &mu;s</td><td>2,423.63 &mu;s</td><td>14,351.6 &mu;s</td><td>168.37</td><td>7.27</td>
+</tr><tr><td>TenParams</td><td>10000</td><td>NullLogger</td><td>625.7 &mu;s</td><td>1.19 &mu;s</td><td>0.93 &mu;s</td><td>626.0 &mu;s</td><td>5.13</td><td>0.06</td>
+</tr><tr><td>LogfTenParams</td><td>10000</td><td>NullLogger</td><td>14,126.6 &mu;s</td><td>88.08 &mu;s</td><td>193.34 &mu;s</td><td>14,032.5 &mu;s</td><td>116.22</td><td>1.98</td>
+</tr><tr><td>LogfTenParamsPercentA</td><td>10000</td><td>NullLogger</td><td>14,195.1 &mu;s</td><td>153.53 &mu;s</td><td>333.76 &mu;s</td><td>14,064.1 &mu;s</td><td>117.76</td><td>4.90</td>
+</tr><tr><td>NoParams</td><td>10000</td><td>SerilogFileLogger</td><td>32,374.2 &mu;s</td><td>4,941.73 &mu;s</td><td>13,938.22 &mu;s</td><td>25,409.6 &mu;s</td><td>1.00</td><td>0.00</td>
+</tr><tr><td>LogfNoParams</td><td>10000</td><td>SerilogFileLogger</td><td>26,232.1 &mu;s</td><td>576.45 &mu;s</td><td>1,606.90 &mu;s</td><td>25,817.1 &mu;s</td><td>0.91</td><td>0.25</td>
+</tr><tr><td>OneParam</td><td>10000</td><td>SerilogFileLogger</td><td>26,390.6 &mu;s</td><td>492.75 &mu;s</td><td>1,323.75 &mu;s</td><td>25,857.3 &mu;s</td><td>0.90</td><td>0.25</td>
+</tr><tr><td>LogfOneParam</td><td>10000</td><td>SerilogFileLogger</td><td>35,333.3 &mu;s</td><td>673.83 &mu;s</td><td>1,197.74 &mu;s</td><td>34,926.7 &mu;s</td><td>0.97</td><td>0.36</td>
+</tr><tr><td>TwoParams</td><td>10000</td><td>SerilogFileLogger</td><td>27,587.1 &mu;s</td><td>458.73 &mu;s</td><td>872.78 &mu;s</td><td>27,492.8 &mu;s</td><td>0.80</td><td>0.29</td>
+</tr><tr><td>LogfTwoParams</td><td>10000</td><td>SerilogFileLogger</td><td>43,478.5 &mu;s</td><td>824.18 &mu;s</td><td>1,826.33 &mu;s</td><td>42,630.2 &mu;s</td><td>1.38</td><td>0.44</td>
+</tr><tr><td>TwoParamsNoop</td><td>10000</td><td>SerilogFileLogger</td><td>729.8 &mu;s</td><td>6.53 &mu;s</td><td>5.45 &mu;s</td><td>728.3 &mu;s</td><td>0.02</td><td>0.00</td>
+</tr><tr><td>LogfTwoParamsNoop</td><td>10000</td><td>SerilogFileLogger</td><td>14,447.3 &mu;s</td><td>150.60 &mu;s</td><td>336.83 &mu;s</td><td>14,404.2 &mu;s</td><td>0.46</td><td>0.15</td>
+</tr><tr><td>TenParams</td><td>10000</td><td>SerilogFileLogger</td><td>27,524.1 &mu;s</td><td>547.17 &mu;s</td><td>767.06 &mu;s</td><td>27,485.7 &mu;s</td><td>0.61</td><td>0.22</td>
+</tr><tr><td>LogfTenParams</td><td>10000</td><td>SerilogFileLogger</td><td>43,576.9 &mu;s</td><td>824.61 &mu;s</td><td>1,810.05 &mu;s</td><td>42,777.8 &mu;s</td><td>1.37</td><td>0.44</td>
+</tr><tr><td>LogfTenParamsPercentA</td><td>10000</td><td>SerilogFileLogger</td><td>42,997.8 &mu;s</td><td>817.12 &mu;s</td><td>637.96 &mu;s</td><td>42,865.1 &mu;s</td><td>1.00</td><td>0.31</td>
 </tr></tbody></table>
 </body>
 </html>
