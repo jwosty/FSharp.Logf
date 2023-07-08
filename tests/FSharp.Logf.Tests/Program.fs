@@ -1,6 +1,9 @@
-﻿module FSharp.Logf.Tests
+module FSharp.Logf.Tests
 open System
 open System.Collections.Generic
+open System.Globalization
+
+
 #if !FABLE_COMPILER
 open Expecto
 open Expecto.Flip
@@ -28,7 +31,7 @@ module LogLine =
     
     let empty = { logLevel = LogLevel.Information; eventId = EventId(0); message = ""; args = List.empty; error = None }
 
-type AssertableLogger(?level) =
+type AssertableLogger<'a>(?level) =
     let level = defaultArg level LogLevel.Debug
     
     member val Lines = List<LogLine>()
@@ -39,18 +42,28 @@ type AssertableLogger(?level) =
         override this.IsEnabled (level': LogLevel) = level' >= level
         override this.Log<'TState> (logLevel, eventId, state: 'TState, error, formatter) =
             let msg, args =
-                match state :> obj with
-#if !FABLE_COMPILER
-                // See FSharp.Logf.ExpectoMsLoggerAdapter
-                | :? IEnumerable<KeyValuePair<string, obj>> as structure ->
+                let f (structure: IEnumerable<KeyValuePair<string, obj>>) =
                     let msgKv = structure |> Seq.find (fun x -> x.Key = "{OriginalFormat}")
                     let msg = msgKv.Value :?> string
                     let args = structure |> Seq.filter (fun x -> x.Key <> "{OriginalFormat}") |> Seq.map (fun x -> x.Key, x.Value) |> Seq.toList
                     msg, args
-#endif
+                
+#if FABLE_COMPILER
+                try
+                    f ((state :> obj) :?> IEnumerable<KeyValuePair<string, obj>>)
+                with _ ->
+                    formatter.Invoke(state, error), []
+#else
+                match state :> obj with
+                // See FSharp.Logf.ExpectoMsLoggerAdapter
+                | :? IEnumerable<KeyValuePair<string, obj>> as structure ->
+                    f structure
                 | _ ->
                     formatter.Invoke(state, error), []
+#endif
             this.Lines.Add { logLevel = logLevel; eventId = eventId; message = msg; args = args; error = Option.ofObj error }
+
+    interface ILogger<'a>
 
 let mkLogger () = AssertableLogger()
 
@@ -63,6 +76,108 @@ type DummyException() =
 let makeDummyException () =
     try raise (DummyException())
     with e -> e
+
+type Helpers =
+    static member StringFormat (format: string, [<ParamArray>] args: obj[]) = String.Format (CultureInfo.InvariantCulture, format, args)
+
+[<AutoOpen>]
+module Helpers =
+    open System.IO
+    
+#if !FABLE_COMPILER
+    open Serilog
+    open Serilog.Sinks
+    open Serilog.Extensions.Logging
+    
+    let serilog2Mel (sl: Serilog.ILogger) : Microsoft.Extensions.Logging.ILogger<'a> =
+        use lf = (new SerilogLoggerFactory(sl))
+        lf.CreateLogger<'a>()
+#endif
+    
+#if FABLE_COMPILER
+    let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
+        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+        
+        let logger = AssertableLogger<_>()
+        logfCall logger
+        Expect.hasLength logger.Lines 1 "should log exactly one line"
+        let line = logger.Lines[0]
+        line.message |> Expect.equal ("Rendered (fable) logf call should match expected value" + pt2) expectedRenderedMsg
+#else
+    
+    /// check that the rendered message matches a given expected output, and also checks that the logf outputs an
+    /// expected set of parameters
+    let assertEquivalentM msg expectedRenderedMsg (expectedLogArgs: (string * obj) list) (logfCall: ILogger<'a> -> unit) =
+        let pt2 = if String.IsNullOrEmpty msg then "" else $" (%s{msg})"
+        
+        let mutable exns = []
+        let collectExn (f: unit -> unit) =
+            try f ()
+            with e -> exns <- e :: exns
+        
+        do
+            let logger = AssertableLogger<_>()
+            logfCall logger
+            collectExn (fun () -> Expect.hasLength logger.Lines 1 "should log exactly one line")
+            let line = logger.Lines[0]
+            collectExn (fun () -> line.args |> Expect.sequenceEqual "should contain expected log args" expectedLogArgs)
+        
+        do
+            use logfTw = new StringWriter()
+            let outputTemplate = "{Message:lj}"
+            let logfLogger = LoggerConfiguration().WriteTo.TextWriter(textWriter = logfTw, outputTemplate = outputTemplate).CreateLogger() |> serilog2Mel
+            logfCall logfLogger
+            let logfRender = logfTw.ToString()
+            
+            collectExn (fun () -> logfRender |> Expect.equal ("Rendered logf call should match expected value" + pt2) expectedRenderedMsg)
+        
+        if not (List.isEmpty exns) then
+            raise (AggregateException(exns))
+    #endif
+        
+    let assertEquivalent expectedRenderedMsg expectedLogArgs (logfCall: ILogger<'a> -> unit) =
+        assertEquivalentM "" expectedRenderedMsg expectedLogArgs logfCall
+
+let theoryAssertEquivalent name values logfCall expectedRenderedMsg expectedLogArgs =
+    testList name [
+        for value in values ->
+            testCase (sprintf "(%A)" value) (fun () ->
+                logfCall
+                |> assertEquivalent
+                    expectedRenderedMsg
+                    expectedLogArgs
+            )
+    ]
+
+let ftheory name (cases: (string * 'a) list) testCode =
+    testList name [
+        for name, value in cases ->
+            ftestCase (sprintf "(%s)" name) (fun () -> testCode value)
+    ]
+
+let theory name (cases: (string * 'a) list) testCode =
+    testList name [
+        for name, value in cases ->
+            testCase (sprintf "(%s)" name) (fun () -> testCode value)
+    ]
+
+let caseData (values: 'a list) = values |> List.map (fun x -> string x, x)
+
+let isNegativeZero x = x = 0. && Double.IsNegativeInfinity (1. / x)
+let isNegativeZeroLike (precision: int) (x: float) = Math.Round (x, precision) |> isNegativeZero
+let isZeroLike (precision: int) (x: float) = Math.Round (x, precision) = 0.0
+
+let isFable =
+#if FABLE_COMPILER
+    true
+#else
+    false
+#endif
+
+// TODO:
+//  * Property tests would be great here (unit tests couldn't completely go away though as FsCheck doesn't work under Fable)
+//  * A property test holding that the format string is only dependent on the printf format specs and not the particular
+//      args passed in, would be good to to have. This would prove that caching the format string is indeed sound.
 
 [<Tests>]
 let allTests =
@@ -141,20 +256,267 @@ let allTests =
                 ]
             )
         ]
+// Didn't feel like making direct .Log calls work under Fable because they require dealing with MessageFormatter func
+        testList "Oracle tests" [
+            testCase "No parameters" (fun () ->
+                (fun l -> logfi l "Hello, world!")
+                |> assertEquivalent
+                    "Hello, world!"
+                    []
+            )
+            testCase "One named parameter" (fun () ->
+                (fun l -> logfi l "Hello, %s{Person}" "Sam")
+                |> assertEquivalent
+                    (sprintf "Hello, %s" "Sam")
+                    ["Person", "Sam"]
+            )
+            testCase "Many named parameters" (fun () ->
+                (fun l -> logfi l "A is %s{A}, B is %d{B}, C is %b{C}" "foo" 42 false)
+                |> assertEquivalent
+                    (sprintf "A is %s, B is %d, C is %b" "foo" 42 false)
+                    ["A", "foo"; "B", 42; "C", false]
+            )
+            testCase "One unnamed parameter" (fun () ->
+                (fun l -> logfi l "Hello, %s" "Sam")
+                |> assertEquivalent
+                    (sprintf "Hello, %s" "Sam")
+                    []
+            )
+            testCase "Many unnamed parameters" (fun () ->
+                (fun l -> logfi l "A is %s, B is %d, C is %b" "foo" 42 false)
+                |> assertEquivalent
+                    (sprintf "A is %s, B is %d, C is %b" "foo" 42 false)
+                    []
+            )
+            testCase "Many named and unnamed parameters" (fun () ->
+                (fun l -> logfi l "A is %s{A}, B is %d, C is %b{C}, D is %s" "foo" 42 false "bar")
+                |> assertEquivalent
+                    (sprintf "A is %s, B is %d, C is %b, D is %s" "foo" 42 false "bar")
+                    ["A", "foo"; "C", false]
+            )
+            testCase "Named parameter with destructure operator" (fun () ->
+                let x = {| Latitude = 25; Longitude = 134 |}
+                (fun l -> logfi l "Processing %A{@sensorInput}" x)
+                |> assertEquivalent
+#if !FABLE_COMPILER
+                    """Processing {"Latitude":25,"Longitude":134}"""
+#else
+                    // This is just how Fable formats %A objects... Not going to override its behavior.
+                    """Processing [object Object]"""
+#endif
+                    ["@sensorInput", x]
+            )
+            let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; -0.; 42.; Math.PI * 1_000_000.; -Math.PI * 1_000_000.; Math.PI / 1_000_000.; -Math.PI / 1_000_000. ]
+            let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
+            let valuesI = caseData [ 0xdeadbeef; 42 ]
+            testList ".NET-style format specifiers" [
+                theory "Float case 1" valuesF (fun x ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.#}" x)
+                    |> assertEquivalent
+                        (sprintf "Duration: %s" (Helpers.StringFormat("{0:0.#}", x)))
+                        ["durationMs", x]
+                )
+                theory "Float case 2" valuesF (fun x ->
+                    (fun l -> logfi l "Duration: %f{durationMs:0.##}" x)
+                    |> assertEquivalent
+                        (sprintf "Duration: %s" (Helpers.StringFormat ("{0:0.##}", x)))
+                        ["durationMs", x]
+                )
+                theory "Alignment" valuesD (fun x ->
+                    (fun l -> logfi l "%f{balance,-10}" x)
+                    |> assertEquivalent
+                        (Helpers.StringFormat("{0,-10}", x))
+                        ["balance", x]
+                )
+                theory "Alignment with currency format" valuesD (fun x ->
+                    (fun l -> logfi l "%f{balance,-10:C}" x)
+                    |> assertEquivalent
+                        (Helpers.StringFormat("{0,-10:C}", x))
+                        ["balance", x]
+                )
+                theory "Hex format" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value:X}" x)
+                    |> assertEquivalent
+                        (Helpers.StringFormat("{0:X}", x))
+                        ["value", x]
+                )
+                theory "Corner case 1" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value}:X}" x)
+                    |> assertEquivalent
+                        (sprintf "%i:X}" x)
+                        ["value", x]
+                )
+                theory "Corner case 2" valuesI (fun x ->
+                    (fun l -> logfi l "%i{value},3}" x)
+                    |> assertEquivalent
+                        (sprintf "%i,3}" x)
+                        ["value", x]
+                )
+            ]
+            testList "printf format specifiers" [
+                theory "Hex format" valuesI (fun x ->
+                    (fun l -> logfi l "%x{value}" x)
+                    |> assertEquivalentM "little x"
+                        (sprintf "%x" x)
+                        ["value", x]
+                    (fun l -> logfi l "%X{value}" x)
+                    |> assertEquivalentM "big X"
+                        (sprintf "%X" x)
+                        ["value", x]
+                )
+                theory "Float with width 0 and 0 right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%0.0f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%0.0f" x)
+                        ["value", x]
+                )
+                theory "Float with 1 right decimal place" valuesF (fun x ->
+                    (fun l -> logfi l "%.1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%0.1f" x)
+                        ["value", x]
+                )
+                theory "Float with 2 right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%.2f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%.2f" x)
+                        ["value", x]
+                )
+                theory "Float with 8 right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%.8f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%.8f" x)
+                        ["value", x]
+                )
+                theory "Float with width of 1 and default number of right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%1f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%1f" x)
+                        ["value", x]
+                )
+                theory "Float with width of 2 and default number of right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%2f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%2f" x)
+                        ["value", x]
+                )
+                theory "Float with width of 10 and default number of right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%10f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%10f" x)
+                        ["value", x]
+                )
+                theory "Float with width of 2 and 3 right decimal places" valuesF (fun x ->
+                    (fun l -> logfi l "%2.3f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%2.3f" x)
+                        ["value", x]
+                )
+                // -pi / 1,000,000 gets padded with one too many zeros, probably because of https://github.com/dotnet/runtime/issues/70460,
+                // so just don't test that value and let the bug exist for now
+                theory "Float with 0-padded width of 10 and 3 right decimal places" (valuesF |> List.filter (fun (_, x) -> not (x <> 0. && isNegativeZeroLike 3 x))) (fun x ->
+                    (fun l -> logfi l "%010.3f{value}" x)
+                    |> assertEquivalent
+                        // Work around printf bug for -0.0: https://github.com/dotnet/fsharp/issues/15558
+                        (if isNegativeZero x && not isFable then "-000000.000" else sprintf "%010.3f" x)
+                        ["value", x]
+                )
+                theory "Float with + flag" valuesF (fun x ->
+                    // Two bugs here:
+                    // 1. One in FSharp.Core (https://github.com/dotnet/fsharp/issues/15557) which causes negative zero
+                    // to get "+-" as the sign 
+                    // 2. One in .NET (https://github.com/dotnet/runtime/issues/70460) which causes negative zero and
+                    // numbers that round to negative zero during formatting to get "-+" as the sign 
+                    
+                    // Due to bug #1, don't compare against the equivalent sprintf call (so we can fix it ourselves)
+                    // We can work around bug #2 by just defining all zero values to print with a + for the sign,
+                    // even if it's a lie, because that is better than getting both symbols
+                    // {value,12:+0.000;-0.000;+0.000}
+                    // {value,12:+0.000;-0.000;+0.000}
+
+                    (fun l -> logfi l "%+12.3f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZero (Math.Round (x,3)) && not isFable then "      +0.000" else sprintf "%+12.3f" x)
+                        ["value", x]
+                )
+                theory "Float with - flag" valuesF (fun x ->
+                    (fun l -> logfi l "%-10.2f{value}" x)
+                    |> assertEquivalent
+                        (sprintf "%-10.2f" x)
+                        ["value", x]
+                )
+                theory "Float with space flag" valuesF (fun x ->
+                    (fun l -> logfi l "% 7.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZero (Math.Round (x,3)) && not isFable then "    0.0" else sprintf "% 7.1f" x)
+                        ["value", x]
+                )
+                theory "Float with +0 flags" valuesF (fun x ->
+                    (fun l -> logfi l "%+08.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZeroLike 3 x && not isFable then "+00000.0" else sprintf "%+08.1f" x)
+                        ["value", x]
+                )
+                theory "Float with space and 0 flags" valuesF (fun x ->
+                    (fun l -> logfi l "% 08.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZeroLike 1 x && not isFable then " 00000.0" else sprintf "% 08.1f" x)
+                        ["value", x]
+                )
+                theory "Float with -+ flags" valuesF (fun x ->
+                    (fun l -> logfi l "%-+8.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZeroLike 1 x && not isFable then "+0.0    " else sprintf "%-+8.1f" x)
+                        ["value", x]
+                )
+                theory "Float with -0 flags" valuesF (fun x ->
+                    // It's impossible get a left-justified, zero-padded number using .NET custom format specifiers,
+                    // so just define it to be next closest thing (left-justified, padded with spaces)
+                    (fun l -> logfi l "%-08.1f{value}" x)
+                    |> assertEquivalent
+                        (if isNegativeZeroLike 1 x && not isFable then "-0.0    " else sprintf "%-8.1f" x)
+                        ["value", x]
+                )
+                theory "Several interspersed format specifiers"
+                    (caseData [
+                        42.59, false, 0xcafebabe
+                        123.45, true, 0xdeadbeef ])
+                    (fun (x,y,z) ->
+                        (fun l -> logfi l "%4.1f{float}, %b{boolean}, %x{hex}" x y z)
+                        |> assertEquivalent
+                            (sprintf "%4.1f, %b, %x" x y z)
+                            ["float", x; "boolean", y; "hex", z]
+                    )
+                theory "Exponential notation" valuesF (fun x ->
+                    (fun l -> logfi l "%e{value}" x)
+                    |> assertEquivalentM "little e"
+                        (sprintf "%e" x)
+                        ["value", x]
+                    (fun l -> logfi l "%E{value}" x)
+                    |> assertEquivalentM "big E"
+                        (sprintf "%E" x)
+                        ["value", x]
+                )
+            ]
+        ]
         testList "SharedTests" [
-            let inline sharedTestCase name code =
-                let err = makeDummyException ()
-                testList name [
-                    for (funcName, logfOrElogf, emptyLogLine) in [nameof(logf), logf, LogLine.empty; nameof(elogf), (fun logger logLevel args -> elogf logger logLevel err args), { LogLine.empty with error = Some err }] ->
-                        testCase funcName (fun () -> code logfOrElogf emptyLogLine)
-                ]
-                
+            let dummyExn = makeDummyException ()
+            let mkLogfCaseData () =
+                let funcs =
+                    [
+                        nameof(logf), (logf, None)
+                        nameof(elogf), ((fun logger level args -> elogf logger level dummyExn args), Some dummyExn)
+                    ]
+                let levels = [ LogLevel.Trace; LogLevel.Critical ]
+                List.allPairs funcs levels
+                |> List.map (fun ((logfFuncName, (logfFunc, err)), level) ->
+                    (sprintf "%s,%O" logfFuncName level), (logfFunc, { LogLine.empty with error = err; logLevel = level}, level))
             testList "Escapes curly braces not part of a named parameter" [
                 // .NET impl should escape the curly braces lest they be interpreted as a message template by the ILogger object.
                 // Fable impl doesn't need to do this since the thing printing won't actually output named parameters anyway.
-                sharedTestCase "case 1" (fun logfOrElogf emptyLogLine ->
+                theory "case 1" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfOrElogf l LogLevel.Information "%s{" "Yo"
+                    logfFunc l level "%s{" "Yo"
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -163,9 +525,9 @@ let allTests =
                         { emptyLogLine with message = "Yo{" }
 #endif
                 )
-                sharedTestCase "case 2" (fun logfOrElogf emptyLogLine ->
+                theory "case 2" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfOrElogf l LogLevel.Information "%s{%d}" "SomeString" 42
+                    logfFunc l level "%s{%d}" "SomeString" 42
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -174,9 +536,9 @@ let allTests =
                         { emptyLogLine with message = "SomeString{42}" }
 #endif
                 )
-                sharedTestCase "case 3" (fun logfOrElogf emptyLogLine ->
+                theory "case 3" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfOrElogf l LogLevel.Information "%s{}%d {iaminvalid}" "XYZ" -797
+                    logfFunc l level "%s{}%d {iaminvalid}" "XYZ" -797
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -185,9 +547,9 @@ let allTests =
                         { emptyLogLine with message = "XYZ{}-797 {iaminvalid}" }
 #endif
                 )
-                sharedTestCase "case 4" (fun logfOrElogf emptyLogLine ->
+                theory "case 4" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    logfOrElogf l LogLevel.Information "{%s{}%d}" "XYZ" -797
+                    logfFunc l level "{%s{}%d}" "XYZ" -797
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -196,10 +558,10 @@ let allTests =
                         { emptyLogLine with message = "{XYZ{}-797}" }
 #endif
                 )
-                sharedTestCase "case 5" (fun logfOrElogf emptyLogLine ->
+                theory "case 5" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
-                    // Note: %f.5 isn't a valid format specifier, which is why the {x} should get escaped
-                    logfOrElogf l LogLevel.Information "{%.4f{}%d}%f.10{x}" 100.2 -797 1.
+                    // Note: %f.10 isn't a valid format specifier, which is why the {x} should get escaped
+                    logfFunc l level "{%.4f{}%d}%f.10{x}" 100.2 -797 1.
                     
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
@@ -211,10 +573,10 @@ let allTests =
             ]
             
             testList "Can print various named parameters" [
-                sharedTestCase "basic case" (fun logfOrElogf emptyLogLine ->
+                theory "basic case" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfOrElogf l LogLevel.Information "Drawing rectangle with dimensions: %f{width},%f{height}" 100. 234.
+                    logfFunc l level "Drawing rectangle with dimensions: %f{width},%f{height}" 100. 234.
                     l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "Drawing rectangle with dimensions: {width},{height}"; args = ["width", 100.0; "height", 234.0] }
@@ -222,10 +584,10 @@ let allTests =
                         { emptyLogLine with message = "Drawing rectangle with dimensions: 100.000000,234.000000" }
 #endif
                 )
-                sharedTestCase "params reversed" (fun logfOrElogf emptyLogLine ->
+                theory "params reversed" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfOrElogf l LogLevel.Information "Drawing rectangle with dimensions (reversed): %f{height},%f{width}" 234. 100.
+                    logfFunc l level "Drawing rectangle with dimensions (reversed): %f{height},%f{width}" 234. 100.
                     l.LastLine |> Expect.equal "Log lines" 
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): {height},{width}"; args = ["height", 234.0; "width", 100.0] }
@@ -233,10 +595,10 @@ let allTests =
                         { emptyLogLine with message = "Drawing rectangle with dimensions (reversed): 234.000000,100.000000" }
 #endif
                 )
-                sharedTestCase "param names may contain alphanumerics or underscores" (fun logfOrElogf emptyLogLine ->
+                theory "param names may contain alphanumerics or underscores" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfOrElogf l LogLevel.Information "%f{param1},%f{2param},%f{foo_bar}" 234. 100. 3.
+                    logfFunc l level "%f{param1},%f{2param},%f{foo_bar}" 234. 100. 3.
                     l.LastLine |> Expect.equal "Log lines" 
 #if !FABLE_COMPILER
                         { emptyLogLine with message = "{param1},{2param},{foo_bar}"; args = ["param1", 234.0; "2param", 100.0; "foo_bar", 3.] }
@@ -244,32 +606,33 @@ let allTests =
                         { emptyLogLine with message = "234.000000,100.000000,3.000000" }
 #endif
                 )
-                sharedTestCase "fmt specs with precision" (fun logfOrElogf emptyLogLine ->
+                theory "fmt specs with precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfOrElogf l LogLevel.Information "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
-                    l.LastLine |> Expect.equal "Log lines" 
+                    logfFunc l level "Params: %.2f{a},%.3f{b},%.10f{c}" 234.2 100.3 544.5
+                    l.LastLine |> Expect.equal "Log lines"
 #if !FABLE_COMPILER
-                        { emptyLogLine with message = "Params: {a},{b},{c}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
+                        { emptyLogLine with message = "Params: {a:0.00;-0.00},{b:0.000;-0.000},{c:0.0000000000;-0.0000000000}"; args = ["a", 234.2; "b", 100.3; "c", 544.5] }
 #else
                         { emptyLogLine with message = "Params: 234.20,100.300,544.5000000000" }
 #endif
                 )
-                sharedTestCase "fmt specs with flags, width, and precision" (fun logfOrElogf emptyLogLine ->
+                theory "fmt specs with flags, width, and precision" (mkLogfCaseData ()) (fun (logfFunc, emptyLogLine, level) ->
                     let l = mkLogger ()
                     
-                    logfOrElogf l LogLevel.Information "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
-                    l.LastLine |> Expect.equal "Log lines" 
+                    logfFunc l level "%0-2.3f{xyz} %0+-10f{abc} %+.5f{d} %5.5f{w}" 1. 2. 3. 4.
 #if !FABLE_COMPILER
-                        { emptyLogLine with message = "{xyz} {abc} {d} {w}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
+                    l.LastLine |> Expect.equal "Log lines"
+                        { emptyLogLine with message = "{xyz,-2:0.000;-0.000} {abc,-10:+0.000000;-0.000000;+0.000000} {d:+0.00000;-0.00000;+0.00000} {w,5:0.00000;-0.00000}"; args = ["xyz", 1.; "abc", 2.; "d", 3.; "w", 4.] }
 #else
+                    l.LastLine |> Expect.equal "Log lines"
                         { emptyLogLine with message = "1.000 +2.000000  +3.00000 4.00000" }
 #endif
                 )
             ]
         ]
         testList "Functions log at the correct level" [
-            for (logLevel, logfVariant, elogfVariantOpt) in [
+            for (level, logfVariant, elogfVariantOpt) in [
                 LogLevel.Trace, logft, None
                 LogLevel.Debug, logfd, None
                 LogLevel.Information, logfi, None
@@ -278,12 +641,12 @@ let allTests =
                 LogLevel.Critical, logfc, Some elogfc
             ] do
                 // see https://github.com/fable-compiler/Fable/issues/3315
-                yield testCase (Enum.GetName(typeof<LogLevel>, logLevel)) (fun () ->
+                yield testCase (Enum.GetName(typeof<LogLevel>, level)) (fun () ->
                     let l = mkLogger ()
-                    logf l logLevel "Hello, %s!" "world"
+                    logf l level "Hello, %s!" "world"
                     logfVariant l "Hello, %s!" "world"
-                    l.Lines[0].logLevel |> Expect.equal "logLevel" logLevel
-                    l.Lines[0].message |> Expect.equal "message" "Hello, world!"
+                    l.Lines[0].logLevel |> Expect.equal (nameof(Unchecked.defaultof<LogLine>.logLevel)) level
+                    l.Lines[0].message |> Expect.equal (nameof(Unchecked.defaultof<LogLine>.message)) "Hello, world!"
                     l.Lines[1] |> Expect.equal "logf variant should be the same as calling logf with the corresponding level" l.Lines[0]
                     
                     let err = makeDummyException ()

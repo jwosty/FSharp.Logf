@@ -4,7 +4,7 @@ framework: auto-detect
 nuget BenchmarkDotNet
 nuget BlackFox.MasterOfFoo 1.0
 nuget Expecto 8.1.0
-nuget Fable.Core 3.0
+nuget Fable.Core 4.0
 nuget Fable.Mocha
 nuget FSharp.Core = 4.6.2
 nuget Microsoft.Extensions.Logging 6.0.0
@@ -39,10 +39,13 @@ group Test
     
     nuget BlackFox.MasterOfFoo >= 1.0
     nuget Expecto >= 8.1.0
-    nuget Fable.Core >= 3.0
+    nuget Fable.Browser.Dom
+    nuget Fable.Core >= 4.0
     nuget Fable.Mocha
     nuget Microsoft.Extensions.Logging >= 6.0.0
     nuget Microsoft.NET.Test.Sdk
+    nuget Serilog.Extensions.Logging
+    nuget Serilog.Sinks.TextWriter
     nuget Suave >= 2.5.0
     nuget YoloDev.Expecto.TestSdk
     nuget FSharp.Core >= 6.0.0
