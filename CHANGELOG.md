@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+
+* Remove an unintentional `Debug.Break()` from a core function
+
 ## 1.2.1
 
 * Better structured logging [\#12](https://github.com/jwosty/FSharp.Logf/pull/12)
