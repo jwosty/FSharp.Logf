@@ -44,6 +44,23 @@ let main argv =
     0
 ```
 
+Most commonly-used [``printf``-style format specifiers](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/plaintext-formatting) are supported and preserved as first-class citizens. For example:
+
+```fsharp
+// Formats a float according to printf rules, while preserving the original value for the `ILogger`
+logfi ml "Float formatting: %+10.1f{Value}" 42.5
+```
+
+You can also use .NET-style formatting exactly as you would when using `ILogger#Log` directly:
+
+You can also use [.NET-style format strings](https://learn.microsoft.com/en-us/dotnet/standard/base-types/formatting-types) when needed:
+
+```fsharp
+// Formats a float according to String.Format rules, exactly equivalent to:
+//     ml.LogInformation("Float formatting: {Value:0.000}", 42.5)
+logfi ml "Float formatting: %f{Value:0.000} 42.5
+```
+
 ## Fable compatability
 
 This library is Fable-compatible. You can take advantage of this like so:
