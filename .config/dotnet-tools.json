@@ -3,34 +3,39 @@
   "isRoot": true,
   "tools": {
     "paket": {
-      "version": "7.2.0",
+      "version": "9.0.2",
       "commands": [
         "paket"
-      ]
+      ],
+      "rollForward": false
     },
     "fable": {
       "version": "4.0.0-theta-018",
       "commands": [
         "fable"
-      ]
+      ],
+      "rollForward": false
     },
     "fake-cli": {
       "version": "5.23.1",
       "commands": [
         "fake"
-      ]
+      ],
+      "rollForward": false
     },
     "fsharp.formatting.commandtool": {
       "version": "11.4.3",
       "commands": [
         "fsdocs"
-      ]
+      ],
+      "rollForward": false
     },
     "sourcelink": {
       "version": "3.1.1",
       "commands": [
         "sourcelink"
-      ]
+      ],
+      "rollForward": false
     }
   }
 }
