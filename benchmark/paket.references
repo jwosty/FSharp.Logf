@@ -5,3 +5,5 @@ Serilog
 Serilog.Extensions.Logging
 Serilog.Sinks.File
 Serilog.Sinks.InMemory
+group Build
+MSBuild.StructuredLogger

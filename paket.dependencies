@@ -22,23 +22,24 @@ nuget YoloDev.Expecto.TestSdk
 
 group Build
     source https://api.nuget.org/v3/index.json
-    framework: net7.0
+    framework: net9.0
     
-    nuget Fake.DotNet.Paket ~> 5.23.1
+    nuget Fake.DotNet.Paket ~> 6.1.3
     nuget Fake.JavaScript.Yarn
     nuget Fake.Tools.Git
     nuget FSharp.Core >= 6
-    nuget Fake.Core.Target ~> 5.23.1
-    nuget Fake.DotNet.Cli ~> 5.23.1
+    nuget Fake.Core.Target ~> 6.1.3
+    nuget Fake.DotNet.Cli ~> 6.1.3
     nuget FSharp.Data
-    nuget Microsoft.Build ~> 17.2.0
-    nuget Microsoft.Build.Framework ~> 17.2.0
+    nuget MSBuild.StructuredLogger ~> 2.2.386
+    nuget Microsoft.Build ~> 17.11.4
+    nuget Microsoft.Build.Framework ~> 17.11.4
     nuget Paket.Core
     nuget System.IO.Compression
     
 group Test
     source https://api.nuget.org/v3/index.json
-    framework: net7.0
+    framework: net9.0
     
     nuget BlackFox.MasterOfFoo >= 1.0
     nuget Expecto ~> 8.10.0
