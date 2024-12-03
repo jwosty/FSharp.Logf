@@ -79,6 +79,12 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
         | 'B' -> Some ":B"
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
+        // It seems that this 'M' branch is technically unnecessary, because it equivalent to
+        // System.Double.ToString("G"), and System.Double.ToString() I think uses "G" by default. So I guess we could
+        // technically just "{MyDecimal}" as the formatter rather than "{MyDecimal:G}" (in fact -- try commenting this
+        // case out, and observe that the corresponding test case still passes)... But I'm still choosing to defensively
+        // emit :G in case there's some corner case I don't know about.
+        | 'M' -> Some ":G"
         | 'e' -> Some ":0.000000e+000"
         | 'E' -> Some ":0.000000E+000"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
