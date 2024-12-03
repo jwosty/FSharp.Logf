@@ -5,7 +5,7 @@ nuget BenchmarkDotNet 0.13.5
 # Work around: https://github.com/dotnet/BenchmarkDotNet/issues/2358
 # Perfolizer is a transitive dependency (through BenchmarkDotNet)
 nuget Perfolizer 0.2.1
-nuget BlackFox.MasterOfFoo 1.0
+nuget BlackFox.MasterOfFoo 2.1.0
 nuget Expecto 8.1.0
 nuget Fable.Core 4.0
 nuget Fable.Mocha
@@ -41,7 +41,7 @@ group Test
     source https://api.nuget.org/v3/index.json
     framework: net9.0
     
-    nuget BlackFox.MasterOfFoo >= 1.0
+    nuget BlackFox.MasterOfFoo >= 2.1.0
     nuget Expecto ~> 8.10.0
     nuget Fable.Browser.Dom
     nuget Fable.Core >= 4.0
