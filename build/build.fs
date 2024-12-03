@@ -117,6 +117,7 @@ let TestDotNet _ =
 
 let TestFable _ =
     Trace.log " -- Running Fable tests --"
+    Yarn.exec "pretest" id
     Yarn.exec "test" id
 
 let Test _ = ()
