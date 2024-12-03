@@ -439,6 +439,8 @@ jspm_packages
 # Optional REPL history
 .node_repl_history
 
+### Yarn ###
+.yarn
 
 ### Bower ###
 bower_components
