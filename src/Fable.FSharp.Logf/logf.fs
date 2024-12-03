@@ -76,6 +76,7 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
                 flags &&& ~~~FormatFlags.PadWithZeros
             else flags
         match printfSpec.TypeChar with
+        | 'B' -> Some ":B"
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
         | 'e' -> Some ":0.000000e+000"

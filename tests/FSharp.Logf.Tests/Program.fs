@@ -364,6 +364,12 @@ let allTests =
                         (sprintf "%X" x)
                         ["value", x]
                 )
+                theory "Binary format" valuesI (fun x ->
+                    (fun l -> logfi l "%B{value}" x)
+                    |> assertEquivalentM "big B"
+                        (sprintf "%B" x)
+                        ["value", x]
+                )
                 theory "Float with width 0 and 0 right decimal places" valuesF (fun x ->
                     (fun l -> logfi l "%0.0f{value}" x)
                     |> assertEquivalent
