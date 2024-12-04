@@ -306,6 +306,7 @@ let allTests =
 #endif
                     ["@sensorInput", x]
             )
+#if !FABLE_COMPILER
             testCase "Interpolated string with no holes" (fun () ->
                 (fun l -> logfi l $"Hello, world!")
                 |> assertEquivalent
@@ -342,6 +343,7 @@ let allTests =
                     $"A is %s{A}, B is %d{B}, C is %b{C}, D is %s{D}"
                     ["A", "foo"; "C", false]
             )
+#endif
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; -0.; 42.; Math.PI * 1_000_000.; -Math.PI * 1_000_000.; Math.PI / 1_000_000.; -Math.PI / 1_000_000. ]
             let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
             let valuesI = caseData [ 0xdeadbeef; 42 ]
@@ -716,6 +718,7 @@ module Main =
         // Uncomment these for a sort of manual "integration" test
         // let ml = ConsoleLogger()
         // let x = "world"
+        // let y = 42.5
         // logft ml "Trace %s{arg}." x
         // logfd ml "Debug %s{arg}." x
         // logfi ml "Info %s{arg}." x
@@ -726,6 +729,9 @@ module Main =
         // elogfw ml err "(exn) Warning %s{arg}." x
         // elogfe ml err "(exn) Error %s{arg}." x
         // elogfc ml err "(exn) Critical %s{arg}." x
+        // logfi ml "Hello %s{x}" x
+        // logfi ml "%f{foo:#.#}" y
+        // logfi ml $"Hello {x}"
         // 0
 #else
         runTestsWithArgs defaultConfig args allTests
