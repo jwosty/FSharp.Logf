@@ -28,10 +28,14 @@ type StringFormat<'T, 'Result, 'Tuple> = Format<'T, unit, string, 'Result, 'Tupl
 // filing an issue would be great!  
 let printfFmtSpecPattern =
     """%"""
-    + """(0|-|\+| )*"""   // flags
-    + """[0-9]*"""      // width
-    + """(\.\d+)?"""    // precision
-    + """[a-zA-Z]"""    // type
+    // flags
+    + """(0|-|\+| )*"""
+    // width
+    + """[0-9]*"""
+    // precision
+    + """(\.\d+)?"""
+    // type (interpolated string holes are special -- they show up as "%P()" -- note the extra parens)
+    + """(P\(\)|[a-zA-Z])"""
 
 let netMsgHolePattern =
     """(?<start>"""
@@ -200,7 +204,7 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
 // Valid format specifiers will be captured by the named capture group "a", and lone curly braces will be captured
 // by the named capture group "b". Later, using the replacement pattern "${a}${b}${b}" causes any occurrences of "a"
 // (valid format specifiers) to be placed back into the string as-is, while occurrences of "b" will be doubled (having
-// the effect of escaping those lone curly braces.
+// the effect of escaping those lone curly braces).
 // Examples:
 //  * Input: "%s{foo}"
 //      * 1st match: "a" = "%s{foo}", "b" = "", "${a}${b}${b}" = "$s{foo}"

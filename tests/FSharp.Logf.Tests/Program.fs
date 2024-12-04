@@ -320,6 +320,28 @@ let allTests =
                     $"Hello, {Person}"
                     []
             )
+            testCase "Interpolated string with one named hole" (fun () ->
+                let Person = "Sam"
+                (fun l ->
+                    logfi l $"Hello, {Person}{{Person}}")
+                |> assertEquivalent
+                    $"Hello, {Person}"
+                    ["Person", "Sam"]
+            )
+            testCase "Interpolated string with many unnamed parameters" (fun () ->
+                let A, B, C = "foo", 42, false
+                (fun l -> logfi l $"A is %s{A}, B is %d{B}, C is %b{C}")
+                |> assertEquivalent
+                    (sprintf $"A is %s{A}, B is %d{B}, C is %b{C}")
+                    []
+            )
+            testCase "Interpolated string with many named and unnamed parameters" (fun () ->
+                let A, B, C, D = "foo", 42, false, "bar"
+                (fun l -> logfi l $"A is %s{A}{{A}}, B is %d{B}, C is %b{C}{{C}}, D is %s{D}")
+                |> assertEquivalent
+                    $"A is %s{A}, B is %d{B}, C is %b{C}, D is %s{D}"
+                    ["A", "foo"; "C", false]
+            )
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; -0.; 42.; Math.PI * 1_000_000.; -Math.PI * 1_000_000.; Math.PI / 1_000_000.; -Math.PI / 1_000_000. ]
             let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
             let valuesI = caseData [ 0xdeadbeef; 42 ]
