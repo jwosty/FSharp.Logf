@@ -306,6 +306,20 @@ let allTests =
 #endif
                     ["@sensorInput", x]
             )
+            testCase "Interpolated string with no holes" (fun () ->
+                (fun l -> logfi l $"Hello, world!")
+                |> assertEquivalent
+                    "Hello, world!"
+                    []
+            )
+            testCase "Interpolated string with one hole" (fun () ->
+                let Person = "Sam"
+                (fun l ->
+                    logfi l $"Hello, {Person}")
+                |> assertEquivalent
+                    $"Hello, {Person}"
+                    []
+            )
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; -0.; 42.; Math.PI * 1_000_000.; -Math.PI * 1_000_000.; Math.PI / 1_000_000.; -Math.PI / 1_000_000. ]
             let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
             let valuesI = caseData [ 0xdeadbeef; 42 ]
