@@ -15,6 +15,8 @@ open BlackFox.MasterOfFoo
 open Fable.Microsoft.Extensions.Logging
 #endif
 
+type StringFormat<'T, 'Result, 'Tuple> = Format<'T, unit, string, 'Result, 'Tuple>
+
 // see: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/plaintext-formatting#format-specifiers-for-printf
 // TODO: This probably isn't quite perfect -- there are likely still some obscure corner cases that this doesn't
 // handle correctly. For anyone looking into this, you could prod it with things that aren't quite valid printf format
@@ -26,10 +28,14 @@ open Fable.Microsoft.Extensions.Logging
 // filing an issue would be great!  
 let printfFmtSpecPattern =
     """%"""
-    + """(0|-|\+| )*"""   // flags
-    + """[0-9]*"""      // width
-    + """(\.\d+)?"""    // precision
-    + """[a-zA-Z]"""    // type
+    // flags
+    + """(0|-|\+| )*"""
+    // width
+    + """[0-9]*"""
+    // precision
+    + """(\.\d+)?"""
+    // type (interpolated string holes are special -- they show up as "%P()" -- note the extra parens)
+    + """(P\(\)|[a-zA-Z])"""
 
 let netMsgHolePattern =
     """(?<start>"""
@@ -76,8 +82,15 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
                 flags &&& ~~~FormatFlags.PadWithZeros
             else flags
         match printfSpec.TypeChar with
+        | 'B' -> Some ":B"
         | 'x' -> Some ":x"
         | 'X' -> Some ":X"
+        // It seems that this 'M' branch is technically unnecessary, because it equivalent to
+        // System.Double.ToString("G"), and System.Double.ToString() I think uses "G" by default. So I guess we could
+        // technically just "{MyDecimal}" as the formatter rather than "{MyDecimal:G}" (in fact -- try commenting this
+        // case out, and observe that the corresponding test case still passes)... But I'm still choosing to defensively
+        // emit :G in case there's some corner case I don't know about.
+        | 'M' -> Some ":G"
         | 'e' -> Some ":0.000000e+000"
         | 'E' -> Some ":0.000000E+000"
         | 'f' when printfSpec.IsWidthSpecified || printfSpec.IsPrecisionSpecified ->
@@ -191,7 +204,7 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
 // Valid format specifiers will be captured by the named capture group "a", and lone curly braces will be captured
 // by the named capture group "b". Later, using the replacement pattern "${a}${b}${b}" causes any occurrences of "a"
 // (valid format specifiers) to be placed back into the string as-is, while occurrences of "b" will be doubled (having
-// the effect of escaping those lone curly braces.
+// the effect of escaping those lone curly braces).
 // Examples:
 //  * Input: "%s{foo}"
 //      * 1st match: "a" = "%s{foo}", "b" = "", "${a}${b}${b}" = "$s{foo}"
@@ -202,12 +215,15 @@ type private LogfEnv<'Result>(continuation: string -> obj[] -> 'Result) =
 //      * Output: foo{{bar}}
 let bracketGroupOrUnpairedBracketRegex = Regex("""(?<a>""" + printfFmtSpecPattern + netMsgHolePattern + """)|(?<b>[\{\}])""")
 
-let escapeUnpairedBrackets (format: Format<'Printer, 'State, 'Residue, 'Result>) =
+//  [FS0057] Experimental library feature, requires '--langversion:preview'. This warning can be disabled using '--nowarn:57' or '#nowarn "57"'.
+#nowarn "57"
+let escapeUnpairedBrackets (format: Format<'Printer, 'State, 'Residue, 'Result, 'Tuple>) : Format<'Printer, 'State, 'Residue, 'Result, 'Tuple> =
     let fmtValue' = bracketGroupOrUnpairedBracketRegex.Replace (format.Value, "${a}${b}${b}")
-    Format<'Printer, 'State, 'Residue, 'Result>(fmtValue')
+    Format<'Printer, 'State, 'Residue, 'Result, 'Tuple>(fmtValue', format.Captures, format.CaptureTypes)
 
-let klogf (continuation: string -> obj[] -> 'Result) (format: StringFormat<'T, 'Result>) =
-    doPrintfFromEnv (escapeUnpairedBrackets format) (LogfEnv(continuation))
+let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, string, 'Result, 'Tuple>) : 'T =
+    let fmt' = escapeUnpairedBrackets format
+    doPrintfFromEnv fmt' (LogfEnv(continuation))
 
 let logf (logger: ILogger) logLevel format =
     klogf (fun msg args -> logger.Log(logLevel, msg, args)) format
@@ -234,7 +250,7 @@ let logMsgParamNameRegex =
 
 // Scans through a format literal (the first parameter to a printf-style function), removing parameter names (i.e.
 // changing "%s{foo}" to "%s", and collecting all custom .Net-style formatters (i.e. from "%f{foo:#.#}" we grab ":#.#")
-let processLogMsgParams (format: Format<'Printer, 'State, 'Residue, 'Result>) : string option list * Format<'Printer, 'State, 'Residue, 'Result> =
+let processLogMsgParams (format: Format<'Printer, 'State, 'Residue, 'Result, 'Tuple>) : string option list * Format<'Printer, 'State, 'Residue, 'Result, 'Tuple> =
     let paramReplacementFmt = System.Collections.Generic.List<string option>()
     let result: string =
         logMsgParamNameRegex.Replace (format.Value, (fun m ->
@@ -248,7 +264,7 @@ let processLogMsgParams (format: Format<'Printer, 'State, 'Residue, 'Result>) : 
         ))
     // TODO: amend to include .Captures and .CaptureTypes - apparently whatever version of Fable I'm using doesn't provide that overload
     // (new Format<'T, unit, string, unit>(logMsgParamNameRegex.Replace(format.Value, "$1")))
-    Seq.toList paramReplacementFmt, (new Format<'Printer, 'State, 'Residue, 'Result>(result))
+    Seq.toList paramReplacementFmt, (new Format<'Printer, 'State, 'Residue, 'Result, 'Tuple>(result))
 
 // Takes a list of .Net custom formatters (like ":#.#"), and a constructed printf function, and constructs a new
 // function (wrapping around the printf function) but which applies these custom formatters to the appropriate
@@ -273,7 +289,7 @@ let rec mapReplacementsDynamic (fmts: string option list) (f: obj) : obj =
     | [] ->
         f
 
-let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, string, 'Result>) : 'T =
+let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, string, 'Result, 'Tuple>) : 'T =
     let replacements, processedFmt = processLogMsgParams format
     let f =
         Printf.ksprintf (fun msg -> continuation msg [||]) processedFmt
@@ -283,7 +299,7 @@ let klogf (continuation: string -> obj[] -> 'Result) (format: Format<'T, unit, s
 
 // Use a fallback implementation where we never attempt to provide structured logging parameters and just flatten
 // everything to a string and print it, since BlackFox.MasterOfFoo uses kinds of reflection that don't work in Fable
-let logf (logger: ILogger) logLevel (format: StringFormat<'T, unit>) : 'T =
+let logf (logger: ILogger) logLevel (format: StringFormat<'T, unit, 'Tuple>) : 'T =
     klogf
         (fun msg _ -> logger.Log (logLevel, EventId(0), null, null, Func<_,_,_>(fun _ _ -> msg)))
         format
@@ -291,7 +307,7 @@ let logf (logger: ILogger) logLevel (format: StringFormat<'T, unit>) : 'T =
 let vlogf (logger: ILogger) (logLevel: LogLevel) (eventId: EventId) (exn: Exception) format =
     klogf (fun msg args -> logger.Log (logLevel, eventId, null, exn, Func<_,_,_>(fun _ _ -> msg))) format
         
-let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: StringFormat<'T, unit>) : 'T =
+let elogf (logger: ILogger) (logLevel: LogLevel) (exn: Exception) (format: StringFormat<'T, unit, 'Tuple>) : 'T =
     klogf
         (fun msg _ -> logger.Log (logLevel, EventId(0), null, exn, Func<_,_,_>(fun _ _ -> msg)))
         format

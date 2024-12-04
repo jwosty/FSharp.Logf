@@ -306,6 +306,44 @@ let allTests =
 #endif
                     ["@sensorInput", x]
             )
+#if !FABLE_COMPILER
+            testCase "Interpolated string with no holes" (fun () ->
+                (fun l -> logfi l $"Hello, world!")
+                |> assertEquivalent
+                    "Hello, world!"
+                    []
+            )
+            testCase "Interpolated string with one hole" (fun () ->
+                let Person = "Sam"
+                (fun l ->
+                    logfi l $"Hello, {Person}")
+                |> assertEquivalent
+                    $"Hello, {Person}"
+                    []
+            )
+            testCase "Interpolated string with one named hole" (fun () ->
+                let Person = "Sam"
+                (fun l ->
+                    logfi l $"Hello, {Person}{{Person}}")
+                |> assertEquivalent
+                    $"Hello, {Person}"
+                    ["Person", "Sam"]
+            )
+            testCase "Interpolated string with many unnamed parameters" (fun () ->
+                let A, B, C = "foo", 42, false
+                (fun l -> logfi l $"A is %s{A}, B is %d{B}, C is %b{C}")
+                |> assertEquivalent
+                    (sprintf $"A is %s{A}, B is %d{B}, C is %b{C}")
+                    []
+            )
+            testCase "Interpolated string with many named and unnamed parameters" (fun () ->
+                let A, B, C, D = "foo", 42, false, "bar"
+                (fun l -> logfi l $"A is %s{A}{{A}}, B is %d{B}, C is %b{C}{{C}}, D is %s{D}")
+                |> assertEquivalent
+                    $"A is %s{A}, B is %d{B}, C is %b{C}, D is %s{D}"
+                    ["A", "foo"; "C", false]
+            )
+#endif
             let valuesF = caseData [ 5. / 3.; 50. / 3.; 500. / 3.; -(5. / 3.); -42.; 0.; -0.; 42.; Math.PI * 1_000_000.; -Math.PI * 1_000_000.; Math.PI / 1_000_000.; -Math.PI / 1_000_000. ]
             let valuesD = caseData [ 0m; 12345.98m; -10m; 0.012m ]
             let valuesI = caseData [ 0xdeadbeef; 42 ]
@@ -362,6 +400,18 @@ let allTests =
                     (fun l -> logfi l "%X{value}" x)
                     |> assertEquivalentM "big X"
                         (sprintf "%X" x)
+                        ["value", x]
+                )
+                theory "Binary format" valuesI (fun x ->
+                    (fun l -> logfi l "%B{value}" x)
+                    |> assertEquivalentM "big B"
+                        (sprintf "%B" x)
+                        ["value", x]
+                )
+                theory "M format" valuesD (fun x ->
+                    (fun l -> logfi l "%M{value}" x)
+                    |> assertEquivalentM "big M"
+                        (sprintf "%M" x)
                         ["value", x]
                 )
                 theory "Float with width 0 and 0 right decimal places" valuesF (fun x ->
@@ -668,6 +718,7 @@ module Main =
         // Uncomment these for a sort of manual "integration" test
         // let ml = ConsoleLogger()
         // let x = "world"
+        // let y = 42.5
         // logft ml "Trace %s{arg}." x
         // logfd ml "Debug %s{arg}." x
         // logfi ml "Info %s{arg}." x
@@ -678,6 +729,9 @@ module Main =
         // elogfw ml err "(exn) Warning %s{arg}." x
         // elogfe ml err "(exn) Error %s{arg}." x
         // elogfc ml err "(exn) Critical %s{arg}." x
+        // logfi ml "Hello %s{x}" x
+        // logfi ml "%f{foo:#.#}" y
+        // logfi ml $"Hello {x}"
         // 0
 #else
         runTestsWithArgs defaultConfig args allTests
