@@ -1,8 +1,8 @@
 RESTRICTION: || (== net10.0) (== net9.0) (== netstandard2.0) (== netstandard2.1)
 NUGET
   remote: https://api.nuget.org/v3/index.json
-    Argu (6.2.3)
-      FSharp.Core (>= 4.3.2)
+    Argu (6.2.5)
+      FSharp.Core (>= 6.0)
       System.Configuration.ConfigurationManager (>= 4.4)
     BenchmarkDotNet (0.15.8)
       BenchmarkDotNet.Annotations (>= 0.15.8)
