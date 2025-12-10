@@ -1,3 +1,4 @@
+# PROTIP: when making changes here, ALWAYS make the corresponding changes to ./Fable/paket.references too!
 group Test
     Expecto
     Fable.Mocha
