@@ -11,7 +11,6 @@ open BenchmarkDotNet.Running
 open BenchmarkDotNet.Jobs
 open BenchmarkDotNet.Diagnosers
 
-[<RequireQualifiedAccess>]
 type Provider = | NullLogger = 0 | SerilogFileLogger = 1 
 
 type MLogger = Microsoft.Extensions.Logging.ILogger
