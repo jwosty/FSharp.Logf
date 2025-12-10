@@ -18,7 +18,7 @@ type MLogger = Microsoft.Extensions.Logging.ILogger
 // FS0104: Enums may take values outside known cases
 #nowarn "0104"
 
-[<SimpleJob(RuntimeMoniker.Net90)>]
+[<SimpleJob(RuntimeMoniker.Net10_0)>]
 // [<EventPipeProfiler(EventPipeProfile.CpuSampling)>]
 type Benchmarks() =
     [<Params(10_000)>]

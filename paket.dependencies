@@ -1,15 +1,13 @@
 source https://api.nuget.org/v3/index.json
 framework: auto-detect
 
-nuget BenchmarkDotNet 0.13.5
+nuget BenchmarkDotNet 0.15.8
 # Work around: https://github.com/dotnet/BenchmarkDotNet/issues/2358
-# Perfolizer is a transitive dependency (through BenchmarkDotNet)
-nuget Perfolizer 0.2.1
 nuget BlackFox.MasterOfFoo 2.1.0
 nuget Expecto 8.1.0
 nuget Fable.Core 4.0
 nuget Fable.Mocha
-nuget FSharp.Core = 5.0.0
+nuget FSharp.Core = 8.0.100
 nuget Microsoft.Extensions.Logging 6.0.0
 nuget Microsoft.Extensions.Logging.Console
 nuget Microsoft.NET.Test.Sdk
@@ -52,5 +50,5 @@ group Test
     nuget Serilog.Sinks.TextWriter
     nuget Suave >= 2.6.0
     nuget YoloDev.Expecto.TestSdk
-    nuget FSharp.Core >= 7.0.0
+    nuget FSharp.Core >= 8.0.100
     
