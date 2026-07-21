@@ -5,7 +5,7 @@ nuget BenchmarkDotNet 0.15.8
 # Work around: https://github.com/dotnet/BenchmarkDotNet/issues/2358
 nuget BlackFox.MasterOfFoo 2.1.0
 nuget Expecto 8.1.0
-nuget Fable.Core 5.0.0-beta.4
+nuget Fable.Core 5.0.0
 nuget Fable.Mocha
 nuget FSharp.Core = 8.0.100
 nuget Microsoft.Extensions.Logging 6.0.0
