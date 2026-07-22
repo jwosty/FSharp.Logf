@@ -81,3 +81,36 @@ let ml =
 
 logfi ml "Hello, %s{arg}!" "world"
 ```
+
+## Contribute
+
+NOTE: replace `build` with `./build.sh` on Unix systems and `.\build.cmd` on Windows.
+
+### Build NuGet package
+
+Requires:
+* .NET 10 SDK
+* Node.js
+* NPM
+* Yarn >= 4
+
+One-time setup:
+
+```bash
+corepack enable
+yarn install
+```
+
+Then, to actually build the NuGet package:
+
+```bash
+build -t Pack
+```
+
+### Run tests
+
+The tests run under both .NET and Fable. To run all test suites under all runtimes, run:
+
+```bash
+build -t Test
+```
